@@ -1,0 +1,6 @@
+puuid,champion_id,champion_name,champion_level,champion_points,champion_points_since_last_level,champion_points_until_next_level,chest_granted,tokens_earned,last_play_time
+demo_player_sneaky_puuid,498,Kaisa,7,487234,265234,0,true,0,1709876543210
+demo_player_sneaky_puuid,110,Varus,7,423156,201156,0,true,0,1709789012345
+demo_player_sneaky_puuid,22,Ashe,6,178945,78945,21600,false,2,1709654321098
+demo_player_sneaky_puuid,202,Jhin,6,156789,56789,21600,true,1,1709543210987
+demo_player_sneaky_puuid,145,Kaisa,5,98234,23234,21600,false,0,1709432109876

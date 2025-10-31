@@ -1,0 +1,6 @@
+puuid,challenge_id,challenge_name,percentile,level,value,achieved_time,category
+demo_player_sneaky_puuid,2022001,Unkillable Demon King,3.2,MASTER,47,1709876543210,VETERANCY
+demo_player_sneaky_puuid,2022005,ADC Difference,8.7,DIAMOND,325,1709789012345,EXPERTISE
+demo_player_sneaky_puuid,2022010,Pentakill Collector,15.4,GOLD,5,1709654321098,COLLECTION
+demo_player_sneaky_puuid,2022015,Vision Master,12.1,PLATINUM,1245,1709543210987,TEAMWORK
+demo_player_sneaky_puuid,2022020,Baron Slayer,20.3,GOLD,89,1709432109876,OBJECTIVE
