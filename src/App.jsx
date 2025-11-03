@@ -5,6 +5,7 @@ import AnalysisPage from './pages/AnalysisPage'
 import CoachingPage from './pages/CoachingPage'
 import DemoRecapPage from './pages/DemoRecapPage'
 import DemoAnalysisPage from './pages/DemoAnalysisPage'
+import ReplayAnalyzerPage from './pages/ReplayAnalyzerPage'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="/coaching/:region/:gameName/:tagLine" element={<CoachingPage />} />
           <Route path="/demo" element={<DemoRecapPage />} />
           <Route path="/demo/analysis" element={<DemoAnalysisPage />} />
+          <Route path="/replay" element={<ReplayAnalyzerPage />} />
         </Routes>
       </div>
     </Router>
