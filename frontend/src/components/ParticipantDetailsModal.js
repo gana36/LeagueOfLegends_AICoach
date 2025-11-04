@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 
-const ParticipantDetailsModal = ({ participant, participantId, onClose, currentFrame, allFrames, currentFrameIndex }) => {
+const CHAMPION_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/12.4.1/img/champion';
+
+const ParticipantDetailsModal = ({ participant, participantId, onClose, currentFrame, allFrames, currentFrameIndex, participantSummaryMap = {} }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [expandedSections, setExpandedSections] = useState({});
 
@@ -72,6 +74,39 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
 
   const isTeammate = participantId <= 5;
   const borderColor = participantId === 1 ? 'border-primary-gold' : isTeammate ? 'border-team-blue' : 'border-enemy-red';
+  const teamAccent = isTeammate ? 'text-team-blue' : 'text-enemy-red';
+  const teamLabel = isTeammate ? 'Blue Team' : 'Red Team';
+
+  const participantSummary = participantSummaryMap?.[participantId] || {};
+  const championName = participantSummary.championName || `Player ${participantId}`;
+  const championImage = participantSummary.championName
+    ? `${CHAMPION_IMAGE_BASE}/${participantSummary.championName}.png`
+    : null;
+  const summonerName = participantSummary.summonerName || `Player ${participantId}`;
+  const role = participantSummary.teamPosition || participantSummary.individualPosition || participantSummary.lane || 'Unknown Role';
+  const kills = participantSummary.kills ?? frameData.kills ?? 0;
+  const deaths = participantSummary.deaths ?? frameData.deaths ?? 0;
+  const assists = participantSummary.assists ?? frameData.assists ?? 0;
+  const kdaRatio = deaths === 0 ? 'Perfect' : ((kills + assists) / (deaths || 1)).toFixed(2);
+  const damageToChampions = participantSummary.totalDamageDealtToChampions ?? damageStats?.totalDamageDoneToChampions ?? 0;
+  const visionScore = participantSummary.visionScore ?? 0;
+
+  const getParticipantSummary = (pid) => participantSummaryMap?.[pid] || {};
+  const getParticipantChampionName = (pid) => {
+    if (!pid) return 'Unknown Player';
+    const summary = getParticipantSummary(pid);
+    return summary.championName || `Player ${pid}`;
+  };
+  const getParticipantDisplay = (pid) => {
+    if (!pid) return 'Unknown Player';
+    const summary = getParticipantSummary(pid);
+    if (summary.summonerName && summary.championName) {
+      return `${summary.summonerName} (${summary.championName})`;
+    }
+    if (summary.championName) return summary.championName;
+    if (summary.summonerName) return summary.summonerName;
+    return `Player ${pid}`;
+  };
 
   const StatRow = ({ label, value, subtext }) => (
     <div className="flex justify-between items-center py-2 border-b border-gray-700">
@@ -105,15 +140,32 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
         {/* Header */}
         <div className="bg-gray-800 p-4 flex justify-between items-center border-b border-gray-700">
           <div className="flex items-center gap-4">
-            <div 
-              className={`w-16 h-16 rounded-full border-4 ${borderColor} flex items-center justify-center text-2xl font-bold`}
-              style={{ backgroundColor: participantId === 1 ? '#FFD700' : isTeammate ? '#00D9FF' : '#FF4655' }}
-            >
-              {participantId}
+            <div className={`w-20 h-20 rounded-full border-4 ${borderColor} overflow-hidden shadow-xl`}>
+              {championImage ? (
+                <img src={championImage} alt={championName} className="w-full h-full object-cover" />
+              ) : (
+                <div 
+                  className="w-full h-full flex items-center justify-center text-3xl font-bold text-white"
+                  style={{ backgroundColor: participantId === 1 ? '#FFD700' : isTeammate ? '#00D9FF' : '#FF4655' }}
+                >
+                  P{participantId}
+                </div>
+              )}
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">Player {participantId}</h2>
-              <p className="text-text-secondary">Level {level} • {latestStats.cs || 0} CS • {totalGold}g</p>
+              <div className="text-sm uppercase tracking-widest text-text-secondary">{teamLabel}</div>
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                {summonerName}
+                <span className="text-xs px-2 py-0.5 bg-gray-700 rounded-full uppercase tracking-wide">{role}</span>
+              </h2>
+              <p className="text-primary-gold text-sm font-semibold">{championName}</p>
+              <div className="flex items-center gap-3 text-xs text-text-secondary mt-1">
+                <span>Level {level}</span>
+                <span>{(latestStats.cs || 0)} CS</span>
+                <span>{totalGold}g</span>
+                <span>KDA {kills}/{deaths}/{assists}</span>
+                <span>KDA Ratio {kdaRatio}</span>
+              </div>
             </div>
           </div>
           <button 
@@ -146,6 +198,18 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
           {activeTab === 'overview' && (
             <div className="space-y-6">
               {/* Current Status */}
+              <div className="bg-gray-800 rounded-lg p-4">
+                <h3 className="text-lg font-bold text-white mb-4">Champion Snapshot</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <StatHighlight title="Champion" value={championName} subvalue={summonerName} accent={teamAccent} />
+                  <StatHighlight title="K / D / A" value={`${kills} / ${deaths} / ${assists}`} subvalue={kdaRatio === 'Perfect' ? 'Perfect KDA' : `${kdaRatio} Ratio`} />
+                  <StatHighlight title="Damage to Champs" value={damageToChampions.toLocaleString()} subvalue="Total" />
+                  <StatHighlight title="Vision Score" value={visionScore} subvalue="Game Vision" />
+                  <StatHighlight title="Role" value={role} subvalue={teamLabel} />
+                  <StatHighlight title="Gold" value={`${totalGold}g`} subvalue={`+${(goldPerSecond || 0).toFixed(2)} g/s`} />
+                </div>
+              </div>
+
               <div className="bg-gray-800 rounded-lg p-4">
                 <h3 className="text-lg font-bold text-white mb-4">Current Status</h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -321,14 +385,16 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
                       };
 
                       if (event.type === 'CHAMPION_KILL') {
+                        const killerName = getParticipantDisplay(event.killerId);
+                        const victimName = getParticipantDisplay(event.victimId);
                         if (event.killerId === participantId) {
-                          eventDescription = `Eliminated Player ${event.victimId}`;
+                          eventDescription = `Eliminated ${victimName}`;
                           eventColor = 'bg-green-900 border-green-700';
                         } else if (event.victimId === participantId) {
-                          eventDescription = `Eliminated by Player ${event.killerId}`;
+                          eventDescription = `Eliminated by ${killerName}`;
                           eventColor = 'bg-red-900 border-red-700';
                         } else if (event.assistingParticipantIds?.includes(participantId)) {
-                          eventDescription = `Assisted elimination of Player ${event.victimId}`;
+                          eventDescription = `Assisted ${killerName} vs ${victimName}`;
                           eventColor = 'bg-blue-900 border-blue-700';
                         }
                       } else if (event.type === 'ELITE_MONSTER_KILL') {
@@ -422,6 +488,15 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
                           <div className="flex-shrink-0 text-current">{getEventIcon()}</div>
                           <div className="flex-1">
                             <p className="text-white font-semibold">{eventDescription}</p>
+                            {(event.killerId || event.victimId) && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {event.killerId && <ParticipantTag label="Killer" name={getParticipantDisplay(event.killerId)} />}
+                                {event.victimId && <ParticipantTag label="Victim" name={getParticipantDisplay(event.victimId)} intent="danger" />}
+                                {event.assistingParticipantIds?.length > 0 && (
+                                  <ParticipantTag label="Assists" name={event.assistingParticipantIds.map(id => getParticipantDisplay(id)).join(', ')} intent="assist" />
+                                )}
+                              </div>
+                            )}
                             {event.position && (
                               <p className="text-text-secondary text-xs flex items-center gap-1 mt-1">
                                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
@@ -480,6 +555,13 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
                           <div className="flex-shrink-0 text-primary-gold">{getEventIcon()}</div>
                           <div className="flex-1">
                             <p className="text-white font-semibold">{event.type.replace(/_/g, ' ')}</p>
+                            <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-text-secondary uppercase tracking-wide">
+                              {event.killerId && <ParticipantTag inline label="Killer" name={getParticipantDisplay(event.killerId)} />}
+                              {event.victimId && <ParticipantTag inline label="Victim" name={getParticipantDisplay(event.victimId)} intent="danger" />}
+                              {event.assistingParticipantIds?.length > 0 && (
+                                <ParticipantTag inline label="Assists" name={event.assistingParticipantIds.map(id => getParticipantDisplay(id)).join(', ')} intent="assist" />
+                              )}
+                            </div>
                             {event.position && (
                               <p className="text-text-secondary text-xs flex items-center gap-1 mt-1">
                                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
@@ -582,6 +664,31 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
         </div>
       </div>
     </div>
+  );
+};
+
+const StatHighlight = ({ title, value, subvalue, accent }) => (
+  <div className="bg-gray-900 rounded-lg p-3 border border-gray-700 shadow-md">
+    <div className="text-[10px] uppercase tracking-wide text-text-secondary mb-1">{title}</div>
+    <div className={`text-lg font-semibold text-white ${accent || ''}`}>{value}</div>
+    {subvalue && <div className="text-xs text-text-secondary mt-1">{subvalue}</div>}
+  </div>
+);
+
+const ParticipantTag = ({ label, name, intent = 'default', inline = false }) => {
+  const intentClasses = intent === 'danger'
+    ? 'bg-enemy-red/20 text-enemy-red border border-enemy-red/40'
+    : intent === 'assist'
+      ? 'bg-team-blue/20 text-team-blue border border-team-blue/40'
+      : 'bg-gray-900 text-white border border-gray-700';
+
+  return (
+    <span className={`${intentClasses} ${inline ? 'px-2 py-0.5 text-[10px]' : 'px-3 py-1 text-xs'} rounded-full uppercase tracking-wide`}
+      title={name}
+    >
+      <span className="opacity-70 mr-1">{label}:</span>
+      {name}
+    </span>
   );
 };
 

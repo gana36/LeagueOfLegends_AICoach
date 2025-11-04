@@ -6,6 +6,7 @@ import TimelineBar from './components/TimelineBar';
 import ParticipantDetailsModal from './components/ParticipantDetailsModal';
 import FrameEventsModal from './components/FrameEventsModal';
 import matchData from './data/match-data.json';
+import matchSummary from './data/match-summary.json';
 
 function App() {
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
@@ -24,6 +25,16 @@ function App() {
   const [showFrameEvents, setShowFrameEvents] = useState(false);
 
   const frames = matchData.info.frames;
+
+  const participantSummaryById = useMemo(() => {
+    const participants = matchSummary?.info?.participants || [];
+    return participants.reduce((acc, participant) => {
+      if (participant?.participantId != null) {
+        acc[participant.participantId] = participant;
+      }
+      return acc;
+    }, {});
+  }, []);
 
   const eventFiltersWithPositions = useMemo(() => {
     const result = {
@@ -138,6 +149,7 @@ function App() {
           onPlayerClick={handlePlayerClick}
           frames={frames}
           currentFrameIndex={currentFrameIndex}
+          participantSummary={participantSummaryById}
         />
         
         <RightSidebar 
@@ -146,6 +158,7 @@ function App() {
           pinnedPlayers={pinnedPlayers}
           onPinPlayer={handlePinPlayer}
           onClose={() => setSelectedPlayer(null)}
+          participantSummary={participantSummaryById}
         />
       </div>
       
@@ -170,6 +183,7 @@ function App() {
           currentFrame={currentFrame}
           allFrames={frames}
           currentFrameIndex={currentFrameIndex}
+          participantSummaryMap={participantSummaryById}
           onClose={() => setDetailsModalPlayer(null)}
         />
       )}
@@ -178,6 +192,7 @@ function App() {
         <FrameEventsModal
           frame={currentFrame}
           frameIndex={currentFrameIndex}
+          participantSummaryMap={participantSummaryById}
           onClose={() => setShowFrameEvents(false)}
           onEventClick={(event) => {
             console.log('Event clicked:', event);
