@@ -1,19 +1,24 @@
 import React, { useState } from 'react';
 
 const CHAMPION_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/12.4.1/img/champion';
+const ITEM_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/15.21.1/img/item';
+const SPELL_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/15.21.1/img/spell';
+const SUMMONER_SPELLS = {
+  summonerdot: { key: 'SummonerDot', label: 'Ignite' },
+  summonersmite: { key: 'SummonerSmite', label: 'Smite' },
+  summonerhaste: { key: 'SummonerHaste', label: 'Ghost' },
+  summonerteleport: { key: 'SummonerTeleport', label: 'Teleport' },
+  summonerheal: { key: 'SummonerHeal', label: 'Heal' },
+  summonerflash: { key: 'SummonerFlash', label: 'Flash' },
+  summonerexhaust: { key: 'SummonerExhaust', label: 'Exhaust' },
+  summonerbarrier: { key: 'SummonerBarrier', label: 'Barrier' },
+  summonerboost: { key: 'SummonerBoost', label: 'Cleanse' }
+};
 
 const ParticipantDetailsModal = ({ participant, participantId, onClose, currentFrame, allFrames, currentFrameIndex, participantSummaryMap = {} }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [expandedSections, setExpandedSections] = useState({});
 
   if (!participant || !currentFrame) return null;
-
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
 
   const frameData = currentFrame.participantFrames?.[participantId];
   if (!frameData) return null;
@@ -79,7 +84,7 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
 
   const participantSummary = participantSummaryMap?.[participantId] || {};
   const championName = participantSummary.championName || `Player ${participantId}`;
-  const championImage = participantSummary.championName
+  const championImage = participantSummary.championName && participantSummary.championName !== ''
     ? `${CHAMPION_IMAGE_BASE}/${participantSummary.championName}.png`
     : null;
   const summonerName = participantSummary.summonerName || `Player ${participantId}`;
@@ -92,11 +97,6 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
   const visionScore = participantSummary.visionScore ?? 0;
 
   const getParticipantSummary = (pid) => participantSummaryMap?.[pid] || {};
-  const getParticipantChampionName = (pid) => {
-    if (!pid) return 'Unknown Player';
-    const summary = getParticipantSummary(pid);
-    return summary.championName || `Player ${pid}`;
-  };
   const getParticipantDisplay = (pid) => {
     if (!pid) return 'Unknown Player';
     const summary = getParticipantSummary(pid);
@@ -106,6 +106,282 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
     if (summary.championName) return summary.championName;
     if (summary.summonerName) return summary.summonerName;
     return `Player ${pid}`;
+  };
+
+  const getItemIcon = (itemId, size = 'w-12 h-12') => {
+    if (!itemId) return null;
+    return (
+      <img
+        src={`${ITEM_IMAGE_BASE}/${itemId}.png`}
+        alt={`Item ${itemId}`}
+        className={`${size} rounded-lg border border-primary-gold/40 bg-black/40 object-contain shadow-md`}
+        loading="lazy"
+      />
+    );
+  };
+
+  const getEventIcon = (event) => {
+    if (!event) return null;
+
+    if (event.type === 'ITEM_UNDO') {
+      return (
+        <div className="flex items-center gap-2">
+          {getItemIcon(event.beforeId, 'w-10 h-10')}
+          <span className="text-primary-gold font-bold">→</span>
+          {getItemIcon(event.afterId, 'w-10 h-10')}
+        </div>
+      );
+    }
+
+    if (event.type?.includes('ITEM')) {
+      return getItemIcon(event.itemId, 'w-12 h-12');
+    }
+
+    if (event.type === 'CHAMPION_KILL') {
+      return (
+        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6.92 5L5 6.92l2.05 2.05L5.5 10.5l1.42 1.42L8.5 10.3l2.05 2.05L12 10.9l1.45 1.45 2.05-2.05 1.58 1.58L18.5 10.3l-1.45-1.45L19 7.4 17.58 6l-1.45 1.45-2.05-2.05L12.63 6.85 10.58 4.8 9.13 6.25 7.08 4.2 6.92 5z" />
+        </svg>
+      );
+    }
+
+    if (event.type === 'ELITE_MONSTER_KILL') {
+      return (
+        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" />
+        </svg>
+      );
+    }
+
+    if (event.type === 'BUILDING_KILL') {
+      return (
+        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 3L2 9v11h20V9l-10-6zm8 16h-4v-4h-4v4H8v-7l4-3 4 3v7z" />
+        </svg>
+      );
+    }
+
+    if (event.type === 'SKILL_LEVEL_UP') {
+      return (
+        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M7 14l5-5 5 5z" />
+        </svg>
+      );
+    }
+
+    if (event.type?.includes('WARD')) {
+      return (
+        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
+        </svg>
+      );
+    }
+
+    return (
+      <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="12" r="8" />
+      </svg>
+    );
+  };
+
+  const normalizeSpellKey = (spellName) => {
+    if (!spellName) return '';
+    return spellName.trim().toLowerCase();
+  };
+
+  const formatSpellLabel = (spellName, damage = {}) => {
+    if (!spellName) {
+      if (damage.basic) return 'Basic Attack';
+      return 'Unknown Ability';
+    }
+
+    const key = normalizeSpellKey(spellName);
+    if (SUMMONER_SPELLS[key]) {
+      return SUMMONER_SPELLS[key].label;
+    }
+
+    const cleaned = spellName
+      .replace(/[_-]/g, ' ')
+      .replace(/\d+/g, '')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .trim();
+
+    return cleaned.length > 0
+      ? cleaned.replace(/\b\w/g, (l) => l.toUpperCase())
+      : 'Unknown Ability';
+  };
+
+  const renderSpellChip = (participantId, spellName, damage = {}, keySuffix = '') => {
+    const label = formatSpellLabel(spellName, damage);
+    const normalized = normalizeSpellKey(spellName);
+    const summonerSpell = SUMMONER_SPELLS[normalized];
+
+    return (
+      <span
+        key={`${participantId || 'unknown'}-${spellName || 'basic'}-${keySuffix}`}
+        className="flex items-center gap-1 px-2 py-1 text-[10px] uppercase tracking-wide rounded-full bg-gray-900/80 border border-gray-700/50 text-text-secondary transition-colors duration-200 hover:border-primary-gold/60 hover:text-white"
+        title={label}
+      >
+        {summonerSpell ? (
+          <img
+            src={`${SPELL_IMAGE_BASE}/${summonerSpell.key}.png`}
+            alt={label}
+            className="w-4 h-4 rounded"
+            loading="lazy"
+          />
+        ) : (
+          <span className="w-4 h-4 rounded-full border border-primary-gold/60 bg-primary-gold/15 text-primary-gold flex items-center justify-center text-[8px] font-bold">
+            ★
+          </span>
+        )}
+        <span className="text-white font-semibold">{label}</span>
+        {participantId && (
+          <span className="opacity-60">{getParticipantDisplay(participantId)}</span>
+        )}
+      </span>
+    );
+  };
+
+  const collectSpellChips = (event) => {
+    const chips = [];
+    const seen = new Set();
+
+    if (event.victimDamageDealt) {
+      event.victimDamageDealt.forEach((dmg, idx) => {
+        const key = `${dmg.participantId || 'unknown'}-${dmg.spellName || (dmg.basic ? 'basic' : 'unknown')}-dealt-${idx}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          chips.push(renderSpellChip(dmg.participantId, dmg.spellName, dmg, `dealt-${idx}`));
+        }
+      });
+    }
+
+    if (event.victimDamageReceived) {
+      event.victimDamageReceived.forEach((dmg, idx) => {
+        const key = `${dmg.participantId || 'unknown'}-${dmg.spellName || (dmg.basic ? 'basic' : 'unknown')}-received-${idx}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          chips.push(renderSpellChip(dmg.participantId, dmg.spellName, dmg, `received-${idx}`));
+        }
+      });
+    }
+
+    return chips;
+  };
+
+  const getEventDescription = (event) => {
+    if (!event) return 'Event';
+
+    if (event.type === 'CHAMPION_KILL') {
+      const killerName = getParticipantDisplay(event.killerId);
+      const victimName = getParticipantDisplay(event.victimId);
+      const assists = event.assistingParticipantIds?.length || 0;
+      return `${killerName} eliminated ${victimName}${assists ? ` with ${assists} assist${assists > 1 ? 's' : ''}` : ''}`;
+    }
+
+    if (event.type === 'ELITE_MONSTER_KILL') {
+      const killerName = getParticipantDisplay(event.killerId);
+      const monsterName = event.monsterType === 'DRAGON'
+        ? 'Dragon'
+        : event.monsterType === 'BARON_NASHOR'
+          ? 'Baron Nashor'
+          : event.monsterType === 'RIFTHERALD'
+            ? 'Rift Herald'
+            : event.monsterType;
+      return `${killerName} secured ${monsterName}${event.monsterSubType ? ` (${event.monsterSubType.replace(/_/g, ' ')})` : ''}`;
+    }
+
+    if (event.type === 'BUILDING_KILL') {
+      const killerName = getParticipantDisplay(event.killerId);
+      const buildingName = event.buildingType === 'TOWER_BUILDING'
+        ? 'Turret'
+        : event.buildingType === 'INHIBITOR_BUILDING'
+          ? 'Inhibitor'
+          : (event.buildingType || '').replace(/_/g, ' ');
+      return `${buildingName} destroyed${event.killerId ? ` by ${killerName}` : ''}`;
+    }
+
+    if (event.type === 'ITEM_PURCHASED') {
+      const buyer = getParticipantDisplay(event.participantId);
+      return `${buyer} purchased Item ${event.itemId}`;
+    }
+
+    if (event.type === 'ITEM_SOLD') {
+      const seller = getParticipantDisplay(event.participantId);
+      return `${seller} sold Item ${event.itemId}`;
+    }
+
+    if (event.type === 'ITEM_DESTROYED') {
+      const owner = getParticipantDisplay(event.participantId);
+      return `${owner}'s Item ${event.itemId} consumed`;
+    }
+
+    if (event.type === 'ITEM_UNDO') {
+      const owner = getParticipantDisplay(event.participantId);
+      return `${owner} refunded Item ${event.itemId}`;
+    }
+
+    if (event.type === 'SKILL_LEVEL_UP') {
+      const owner = getParticipantDisplay(event.participantId);
+      const skillNames = { 1: 'Q', 2: 'W', 3: 'E', 4: 'R' };
+      return `${owner} leveled ${skillNames[event.skillSlot] || event.skillSlot}`;
+    }
+
+    if (event.type === 'WARD_PLACED') {
+      const creator = getParticipantDisplay(event.creatorId);
+      const wardName = event.wardType === 'YELLOW_TRINKET' || event.wardType === 'SIGHT_WARD'
+        ? 'Stealth Ward'
+        : event.wardType === 'CONTROL_WARD'
+          ? 'Control Ward'
+          : (event.wardType || '').replace(/_/g, ' ');
+      return `${creator} placed ${wardName}`;
+    }
+
+    if (event.type === 'WARD_KILL') {
+      const killerName = getParticipantDisplay(event.killerId);
+      return `${killerName} destroyed a ward`;
+    }
+
+    return (event.type || 'Event').replace(/_/g, ' ');
+  };
+
+  const getEventSurfaceClasses = (event) => {
+    if (!event) return 'bg-gradient-to-br from-slate-950/80 via-slate-900/40 to-gray-900/80 border border-gray-700/60';
+
+    if (event.type === 'CHAMPION_KILL') {
+      if (event.killerId === participantId) {
+        return 'bg-gradient-to-br from-emerald-900/80 via-emerald-800/40 to-gray-900/80 border border-emerald-600/60';
+      }
+      if (event.victimId === participantId) {
+        return 'bg-gradient-to-br from-rose-900/80 via-rose-800/40 to-gray-900/80 border border-rose-700/60';
+      }
+      if (event.assistingParticipantIds?.includes(participantId)) {
+        return 'bg-gradient-to-br from-sky-900/80 via-sky-800/40 to-gray-900/80 border border-sky-600/60';
+      }
+      return 'bg-gradient-to-br from-red-950/80 via-red-900/40 to-gray-900/80 border border-red-700/60';
+    }
+
+    if (event.type === 'ELITE_MONSTER_KILL') {
+      return 'bg-gradient-to-br from-purple-950/80 via-purple-900/40 to-gray-900/80 border border-purple-700/60';
+    }
+
+    if (event.type === 'BUILDING_KILL') {
+      return 'bg-gradient-to-br from-amber-900/80 via-amber-800/40 to-gray-900/80 border border-amber-600/60';
+    }
+
+    if (event.type?.includes('ITEM')) {
+      return 'bg-gradient-to-br from-indigo-950/80 via-indigo-900/40 to-gray-900/80 border border-indigo-700/60';
+    }
+
+    if (event.type?.includes('WARD')) {
+      return 'bg-gradient-to-br from-pink-950/80 via-pink-900/40 to-gray-900/80 border border-pink-700/60';
+    }
+
+    if (event.type === 'SKILL_LEVEL_UP') {
+      return 'bg-gradient-to-br from-teal-950/80 via-teal-900/40 to-gray-900/80 border border-teal-700/60';
+    }
+
+    return 'bg-gradient-to-br from-slate-950/80 via-slate-900/40 to-gray-900/80 border border-gray-700/60';
   };
 
   const StatRow = ({ label, value, subtext }) => (
@@ -118,19 +394,6 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
     </div>
   );
 
-  const SectionHeader = ({ title, count, sectionKey }) => (
-    <div 
-      className="flex justify-between items-center py-3 px-4 bg-gray-700 cursor-pointer hover:bg-gray-600 transition-colors"
-      onClick={() => toggleSection(sectionKey)}
-    >
-      <h3 className="text-white font-semibold">{title}</h3>
-      <div className="flex items-center gap-2">
-        {count !== undefined && <span className="text-text-secondary text-sm">{count}</span>}
-        <span className="text-white">{expandedSections[sectionKey] ? '▼' : '▶'}</span>
-      </div>
-    </div>
-  );
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div 
@@ -139,32 +402,36 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
       >
         {/* Header */}
         <div className="bg-gray-800 p-4 flex justify-between items-center border-b border-gray-700">
-          <div className="flex items-center gap-4">
-            <div className={`w-20 h-20 rounded-full border-4 ${borderColor} overflow-hidden shadow-xl`}>
-              {championImage ? (
-                <img src={championImage} alt={championName} className="w-full h-full object-cover" />
-              ) : (
-                <div 
-                  className="w-full h-full flex items-center justify-center text-3xl font-bold text-white"
-                  style={{ backgroundColor: participantId === 1 ? '#FFD700' : isTeammate ? '#00D9FF' : '#FF4655' }}
-                >
-                  P{participantId}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className={`w-24 h-24 rounded-2xl border-4 ${borderColor} overflow-hidden shadow-2xl bg-black/60`}
+                style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.6)' }}
+              >
+                {championImage ? (
+                  <img src={championImage} alt={championName} className="w-full h-full object-cover" />
+                ) : (
+                  <div 
+                    className="w-full h-full flex items-center justify-center text-3xl font-bold text-white"
+                    style={{ backgroundColor: participantId === 1 ? '#FFD700' : isTeammate ? '#00D9FF' : '#FF4655' }}
+                  >
+                    P{participantId}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="text-sm uppercase tracking-widest text-text-secondary">{teamLabel}</div>
+                <h2 className="text-3xl font-extrabold text-white flex items-center gap-3 drop-shadow-lg">
+                  {summonerName}
+                  <span className="text-xs px-3 py-1 bg-gray-800/80 rounded-full uppercase tracking-wide border border-white/10">{role}</span>
+                </h2>
+                <p className="text-primary-gold text-base font-semibold tracking-wide">{championName}</p>
+                <div className="flex items-center gap-4 text-xs text-text-secondary mt-1">
+                  <span className="flex items-center gap-1"><span className="text-white font-semibold">Level {level}</span></span>
+                  <span className="flex items-center gap-1"><span className="text-white font-semibold">{(latestStats.cs || 0)} CS</span></span>
+                  <span className="flex items-center gap-1"><span className="text-white font-semibold">{totalGold}g</span></span>
+                  <span className="flex items-center gap-1"><span className="text-white font-semibold">KDA {kills}/{deaths}/{assists}</span></span>
+                  <span className="flex items-center gap-1"><span className="text-white font-semibold">Ratio {kdaRatio}</span></span>
                 </div>
-              )}
-            </div>
-            <div>
-              <div className="text-sm uppercase tracking-widest text-text-secondary">{teamLabel}</div>
-              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                {summonerName}
-                <span className="text-xs px-2 py-0.5 bg-gray-700 rounded-full uppercase tracking-wide">{role}</span>
-              </h2>
-              <p className="text-primary-gold text-sm font-semibold">{championName}</p>
-              <div className="flex items-center gap-3 text-xs text-text-secondary mt-1">
-                <span>Level {level}</span>
-                <span>{(latestStats.cs || 0)} CS</span>
-                <span>{totalGold}g</span>
-                <span>KDA {kills}/{deaths}/{assists}</span>
-                <span>KDA Ratio {kdaRatio}</span>
               </div>
             </div>
           </div>
@@ -376,120 +643,21 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
                       const minutes = Math.floor(event.timestamp / 60000);
                       const seconds = Math.floor((event.timestamp % 60000) / 1000);
                       const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                      
-                      let eventDescription = '';
-                      let eventColor = 'bg-gray-700';
-                      
-                      const formatEventType = (type) => {
-                        return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
-                      };
 
-                      if (event.type === 'CHAMPION_KILL') {
-                        const killerName = getParticipantDisplay(event.killerId);
-                        const victimName = getParticipantDisplay(event.victimId);
-                        if (event.killerId === participantId) {
-                          eventDescription = `Eliminated ${victimName}`;
-                          eventColor = 'bg-green-900 border-green-700';
-                        } else if (event.victimId === participantId) {
-                          eventDescription = `Eliminated by ${killerName}`;
-                          eventColor = 'bg-red-900 border-red-700';
-                        } else if (event.assistingParticipantIds?.includes(participantId)) {
-                          eventDescription = `Assisted ${killerName} vs ${victimName}`;
-                          eventColor = 'bg-blue-900 border-blue-700';
-                        }
-                      } else if (event.type === 'ELITE_MONSTER_KILL') {
-                        const monsterName = event.monsterType === 'DRAGON' ? 'Dragon' : event.monsterType === 'BARON_NASHOR' ? 'Baron Nashor' : event.monsterType === 'RIFTHERALD' ? 'Rift Herald' : event.monsterType;
-                        eventDescription = `Slayed ${monsterName}`;
-                        eventColor = 'bg-purple-900 border-purple-700';
-                      } else if (event.type === 'BUILDING_KILL') {
-                        const buildingName = event.buildingType === 'TOWER_BUILDING' ? 'Turret' : event.buildingType === 'INHIBITOR_BUILDING' ? 'Inhibitor' : formatEventType(event.buildingType);
-                        eventDescription = `Destroyed ${buildingName}`;
-                        eventColor = 'bg-yellow-900 border-yellow-700';
-                      } else if (event.type === 'ITEM_PURCHASED') {
-                        eventDescription = `Purchased Item ${event.itemId}`;
-                        eventColor = 'bg-indigo-900 border-indigo-700';
-                      } else if (event.type === 'ITEM_SOLD') {
-                        eventDescription = `Sold Item ${event.itemId}`;
-                        eventColor = 'bg-orange-900 border-orange-700';
-                      } else if (event.type === 'ITEM_DESTROYED') {
-                        eventDescription = `Item ${event.itemId} consumed`;
-                        eventColor = 'bg-red-800 border-red-600';
-                      } else if (event.type === 'ITEM_UNDO') {
-                        eventDescription = `Refunded Item ${event.itemId}`;
-                        eventColor = 'bg-gray-600 border-gray-500';
-                      } else if (event.type === 'SKILL_LEVEL_UP') {
-                        const skillNames = { 1: 'Q', 2: 'W', 3: 'E', 4: 'R' };
-                        eventDescription = `Leveled ${skillNames[event.skillSlot] || event.skillSlot}`;
-                        eventColor = 'bg-teal-900 border-teal-700';
-                      } else if (event.type === 'WARD_PLACED') {
-                        const wardName = event.wardType === 'YELLOW_TRINKET' ? 'Stealth Ward' : event.wardType === 'SIGHT_WARD' ? 'Stealth Ward' : event.wardType === 'CONTROL_WARD' ? 'Control Ward' : formatEventType(event.wardType);
-                        eventDescription = `Placed ${wardName}`;
-                        eventColor = 'bg-pink-900 border-pink-700';
-                      } else if (event.type === 'WARD_KILL') {
-                        eventDescription = `Destroyed ward`;
-                        eventColor = 'bg-pink-800 border-pink-600';
-                      } else {
-                        eventDescription = formatEventType(event.type);
-                        eventColor = 'bg-gray-700 border-gray-600';
-                      }
-                      
-                      const getEventIcon = () => {
-                        if (event.type === 'CHAMPION_KILL') {
-                          return (
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M6.92 5L5 6.92l2.05 2.05L5.5 10.5l1.42 1.42L8.5 10.3l2.05 2.05L12 10.9l1.45 1.45 2.05-2.05 1.58 1.58L18.5 10.3l-1.45-1.45L19 7.4 17.58 6l-1.45 1.45-2.05-2.05L12.63 6.85 10.58 4.8 9.13 6.25 7.08 4.2 6.92 5z"/>
-                            </svg>
-                          );
-                        }
-                        if (event.type === 'ELITE_MONSTER_KILL') {
-                          return (
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
-                            </svg>
-                          );
-                        }
-                        if (event.type === 'BUILDING_KILL') {
-                          return (
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 3L2 9v11h20V9l-10-6zm8 16h-4v-4h-4v4H8v-7l4-3 4 3v7z"/>
-                            </svg>
-                          );
-                        }
-                        if (event.type.includes('ITEM')) {
-                          return (
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                              <rect x="3" y="3" width="18" height="18" rx="2"/>
-                            </svg>
-                          );
-                        }
-                        if (event.type.includes('WARD')) {
-                          return (
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                            </svg>
-                          );
-                        }
-                        if (event.type === 'SKILL_LEVEL_UP') {
-                          return (
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M7 14l5-5 5 5z"/>
-                            </svg>
-                          );
-                        }
-                        return (
-                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                            <circle cx="12" cy="12" r="8"/>
-                          </svg>
-                        );
-                      };
-                      
+                      const spellChips = collectSpellChips(event);
+
                       return (
-                        <div key={idx} className={`${eventColor} rounded-lg p-3 flex items-center gap-3 border border-opacity-50`}>
-                          <div className="flex-shrink-0 text-current">{getEventIcon()}</div>
+                        <div
+                          key={idx}
+                          className={`${getEventSurfaceClasses(event)} rounded-xl p-4 flex items-center gap-4 border border-opacity-50 shadow-lg backdrop-blur-sm transition-transform hover:-translate-y-1 hover:border-primary-gold/60`}
+                        >
+                          <div className="flex-shrink-0 w-16 h-16 flex items-center justify-center rounded-lg bg-black/40 border border-white/10 shadow-inner">
+                            {getEventIcon(event)}
+                          </div>
                           <div className="flex-1">
-                            <p className="text-white font-semibold">{eventDescription}</p>
+                            <p className="text-white font-semibold text-lg leading-snug">{getEventDescription(event)}</p>
                             {(event.killerId || event.victimId) && (
-                              <div className="mt-2 flex flex-wrap gap-2">
+                              <div className="mt-3 flex flex-wrap gap-2">
                                 {event.killerId && <ParticipantTag label="Killer" name={getParticipantDisplay(event.killerId)} />}
                                 {event.victimId && <ParticipantTag label="Victim" name={getParticipantDisplay(event.victimId)} intent="danger" />}
                                 {event.assistingParticipantIds?.length > 0 && (
@@ -497,16 +665,53 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
                                 )}
                               </div>
                             )}
-                            {event.position && (
-                              <p className="text-text-secondary text-xs flex items-center gap-1 mt-1">
-                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                                </svg>
-                                ({Math.round(event.position.x)}, {Math.round(event.position.y)})
-                              </p>
+                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-text-secondary">
+                              {spellChips.length > 0 && (
+                                <div className="col-span-2">
+                                  <div className="text-[10px] uppercase tracking-wide text-primary-gold mb-1">Spell Usage</div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {spellChips}
+                                  </div>
+                                </div>
+                              )}
+                              {event.itemId && (
+                                <div className="flex items-center gap-2">
+                                  {getItemIcon(event.itemId, 'w-8 h-8')}
+                                  <span>Item {event.itemId}</span>
+                                </div>
+                              )}
+                              {event.position && (
+                                <div className="flex items-center gap-2">
+                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                                  </svg>
+                                  ({Math.round(event.position.x)}, {Math.round(event.position.y)})
+                                </div>
+                              )}
+                              {event.bounty !== undefined && (
+                                <div className="flex items-center gap-2 text-primary-gold">
+                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                    <circle cx="12" cy="12" r="8" />
+                                  </svg>
+                                  Bounty: {event.bounty}g
+                                </div>
+                              )}
+                              {event.shutdownBounty !== undefined && (
+                                <div className="flex items-center gap-2 text-primary-gold">
+                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                  </svg>
+                                  Shutdown: {event.shutdownBounty}g
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            <span className="text-text-secondary text-sm font-mono">{timeStr}</span>
+                            {event.itemId && (
+                              <div className="w-10 h-10">{getItemIcon(event.itemId, 'w-10 h-10')}</div>
                             )}
                           </div>
-                          <span className="text-text-secondary text-sm font-mono">{timeStr}</span>
                         </div>
                       );
                     })
@@ -521,55 +726,49 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
                     <p className="text-text-secondary text-center py-4">No events in this frame</p>
                   ) : (
                     participantEvents.map((event, idx) => {
-                      const getEventIcon = () => {
-                        if (event.type === 'CHAMPION_KILL') {
-                          return (
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M6.92 5L5 6.92l2.05 2.05L5.5 10.5l1.42 1.42L8.5 10.3l2.05 2.05L12 10.9l1.45 1.45 2.05-2.05 1.58 1.58L18.5 10.3l-1.45-1.45L19 7.4 17.58 6l-1.45 1.45-2.05-2.05L12.63 6.85 10.58 4.8 9.13 6.25 7.08 4.2 6.92 5z"/>
-                            </svg>
-                          );
-                        }
-                        if (event.type === 'ELITE_MONSTER_KILL') {
-                          return (
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
-                            </svg>
-                          );
-                        }
-                        if (event.type === 'BUILDING_KILL') {
-                          return (
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 3L2 9v11h20V9l-10-6zm8 16h-4v-4h-4v4H8v-7l4-3 4 3v7z"/>
-                            </svg>
-                          );
-                        }
-                        return (
-                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                            <circle cx="12" cy="12" r="8"/>
-                          </svg>
-                        );
-                      };
-                      
+                      const spellChips = collectSpellChips(event);
+
                       return (
-                        <div key={idx} className="bg-gray-700 rounded-lg p-3 flex items-center gap-3 border border-gray-600">
-                          <div className="flex-shrink-0 text-primary-gold">{getEventIcon()}</div>
+                        <div
+                          key={idx}
+                          className={`${getEventSurfaceClasses(event)} rounded-lg p-3 flex items-center gap-3 border border-opacity-50 shadow-md backdrop-blur-sm`}
+                        >
+                          <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-lg bg-black/40 border border-white/10 shadow-inner">
+                            {getEventIcon(event)}
+                          </div>
                           <div className="flex-1">
-                            <p className="text-white font-semibold">{event.type.replace(/_/g, ' ')}</p>
-                            <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-text-secondary uppercase tracking-wide">
+                            <p className="text-white font-semibold text-sm leading-snug">{getEventDescription(event)}</p>
+                            <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-text-secondary uppercase tracking-wide">
                               {event.killerId && <ParticipantTag inline label="Killer" name={getParticipantDisplay(event.killerId)} />}
                               {event.victimId && <ParticipantTag inline label="Victim" name={getParticipantDisplay(event.victimId)} intent="danger" />}
                               {event.assistingParticipantIds?.length > 0 && (
                                 <ParticipantTag inline label="Assists" name={event.assistingParticipantIds.map(id => getParticipantDisplay(id)).join(', ')} intent="assist" />
                               )}
                             </div>
-                            {event.position && (
-                              <p className="text-text-secondary text-xs flex items-center gap-1 mt-1">
-                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                                </svg>
-                                ({Math.round(event.position.x)}, {Math.round(event.position.y)})
-                              </p>
+                            {spellChips.length > 0 && (
+                              <div className="mt-2">
+                                <div className="text-[10px] uppercase tracking-wide text-primary-gold mb-1">Spell Usage</div>
+                                <div className="flex flex-wrap gap-2">
+                                  {spellChips}
+                                </div>
+                              </div>
                             )}
+                            <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-text-secondary">
+                              {event.itemId && (
+                                <div className="flex items-center gap-2">
+                                  {getItemIcon(event.itemId, 'w-6 h-6')}
+                                  <span>Item {event.itemId}</span>
+                                </div>
+                              )}
+                              {event.position && (
+                                <div className="flex items-center gap-1">
+                                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                                  </svg>
+                                  ({Math.round(event.position.x)}, {Math.round(event.position.y)})
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
