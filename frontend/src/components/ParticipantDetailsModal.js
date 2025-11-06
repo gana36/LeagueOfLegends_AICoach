@@ -57,6 +57,144 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
   const statsHistory = getStatsHistory();
   const latestStats = statsHistory[statsHistory.length - 1] || {};
 
+  const generateSvgId = (prefix) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
+
+  const createGradientIcon = ({ stops, borderColor, glyph, className = 'w-12 h-12' }) => {
+    const gradientId = generateSvgId('participant-event-gradient');
+    const glowId = generateSvgId('participant-event-glow');
+
+    return (
+      <svg
+        className={className}
+        viewBox="0 0 48 48"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+            {stops.map((stop, idx) => (
+              <stop
+                key={idx}
+                offset={stop.offset}
+                stopColor={stop.color}
+                stopOpacity={stop.opacity ?? 1}
+              />
+            ))}
+          </linearGradient>
+          <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor={borderColor} floodOpacity="0.35" />
+          </filter>
+        </defs>
+        <g filter={`url(#${glowId})`}>
+          <rect x="4" y="4" width="40" height="40" rx="12" fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="1.5" />
+        </g>
+        <g>{glyph}</g>
+      </svg>
+    );
+  };
+
+  const renderKillIcon = () =>
+    createGradientIcon({
+      stops: [
+        { offset: '0%', color: '#7f1d1d' },
+        { offset: '55%', color: '#b91c1c' },
+        { offset: '100%', color: '#dc2626' }
+      ],
+      borderColor: 'rgba(248,113,113,0.65)',
+      glyph: (
+        <>
+          <g fill="none" stroke="#fde68a" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 32L24 24l8 8" />
+            <path d="M18 16l6 6-10 10" />
+            <path d="M30 16l-6 6 10 10" />
+          </g>
+          <path d="M19 12l5 5 5-5 3 3-8 8-8-8z" fill="#fef3c7" fillOpacity="0.9" />
+          <circle cx="24" cy="24" r="4.5" fill="#fef9c3" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2" />
+          <rect x="13.5" y="31.5" width="3.4" height="6.5" rx="1.3" fill="#1f2937" stroke="#fde68a" strokeWidth="1" />
+          <rect x="31.1" y="31.5" width="3.4" height="6.5" rx="1.3" fill="#1f2937" stroke="#fde68a" strokeWidth="1" />
+        </>
+      )
+    });
+
+  const renderBuildingIcon = () =>
+    createGradientIcon({
+      stops: [
+        { offset: '0%', color: '#78350f' },
+        { offset: '50%', color: '#b45309' },
+        { offset: '100%', color: '#f59e0b' }
+      ],
+      borderColor: 'rgba(251,191,36,0.7)',
+      glyph: (
+        <>
+          <path
+            d="M17 34h14v8H17z"
+            fill="#fef3c7"
+            stroke="#fde68a"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M19 34V27h-4l9-9 9 9h-4v7z"
+            fill="#ffffff"
+            fillOpacity="0.85"
+            stroke="#ffffff"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+          <rect x="22.5" y="26" width="3" height="5.2" rx="1.2" fill="#fcd34d" stroke="#f59e0b" strokeWidth="1" />
+          <path d="M18 22h12" stroke="#f59e0b" strokeWidth="1.4" strokeLinecap="round" />
+        </>
+      )
+    });
+
+  const renderDefaultEventIcon = () =>
+    createGradientIcon({
+      stops: [
+        { offset: '0%', color: '#1e293b' },
+        { offset: '100%', color: '#0f172a' }
+      ],
+      borderColor: 'rgba(148,163,184,0.7)',
+      glyph: (
+        <>
+          <path
+            d="M24 4c-7.74 0-14 6.26-14 14 0 10.5 14 26 14 26s14-15.5 14-26c0-7.74-6.26-14-14-14z"
+            fill="rgba(15,23,42,0.55)"
+            stroke="rgba(226,232,240,0.55)"
+            strokeWidth="1.6"
+          />
+          <circle
+            cx="24"
+            cy="18"
+            r="5"
+            fill="rgba(148,163,184,0.9)"
+            stroke="rgba(226,232,240,0.75)"
+            strokeWidth="1.2"
+          />
+        </>
+      )
+    });
+
+  const getTimelinePolylinePoints = (data, valueAccessor) => {
+    if (!data || data.length < 2) return '';
+
+    const values = data.map(valueAccessor);
+    const maxValue = Math.max(...values);
+    const safeMax = maxValue > 0 ? maxValue : 1;
+
+    return data
+      .map((stat, idx) => {
+        const x = (idx / (data.length - 1)) * 100;
+        const value = valueAccessor(stat) || 0;
+        const normalized = Math.min(Math.max(value / safeMax, 0), 1);
+        const y = 100 - normalized * 80;
+        return `${x},${y}`;
+      })
+      .join(' ');
+  };
+
+  const goldPolylinePoints = getTimelinePolylinePoints(statsHistory, (stat) => stat.gold || 0);
+  const csPolylinePoints = getTimelinePolylinePoints(statsHistory, (stat) => stat.cs || 0);
+
   // Get all events involving this participant
   const getAllParticipantEvents = () => {
     const events = [];
@@ -139,11 +277,7 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
     }
 
     if (event.type === 'CHAMPION_KILL') {
-      return (
-        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6.92 5L5 6.92l2.05 2.05L5.5 10.5l1.42 1.42L8.5 10.3l2.05 2.05L12 10.9l1.45 1.45 2.05-2.05 1.58 1.58L18.5 10.3l-1.45-1.45L19 7.4 17.58 6l-1.45 1.45-2.05-2.05L12.63 6.85 10.58 4.8 9.13 6.25 7.08 4.2 6.92 5z" />
-        </svg>
-      );
+      return renderKillIcon();
     }
 
     if (event.type === 'ELITE_MONSTER_KILL') {
@@ -169,11 +303,7 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
     }
 
     if (event.type === 'BUILDING_KILL') {
-      return (
-        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 3L2 9v11h20V9l-10-6zm8 16h-4v-4h-4v4H8v-7l4-3 4 3v7z" />
-        </svg>
-      );
+      return renderBuildingIcon();
     }
 
     if (event.type === 'SKILL_LEVEL_UP') {
@@ -192,11 +322,7 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
       );
     }
 
-    return (
-      <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-        <circle cx="12" cy="12" r="8" />
-      </svg>
-    );
+    return renderDefaultEventIcon();
   };
 
   const normalizeSpellKey = (spellName) => {
@@ -803,14 +929,16 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
                   <div>
                     <h4 className="text-white font-semibold mb-2">Gold Progression</h4>
                     <div className="relative h-32 bg-gray-700 rounded">
-                      <svg width="100%" height="100%" className="absolute inset-0">
-                        {statsHistory.length > 1 && (
+                      <svg
+                        width="100%"
+                        height="100%"
+                        className="absolute inset-0"
+                        viewBox="0 0 100 100"
+                        preserveAspectRatio="none"
+                      >
+                        {goldPolylinePoints && (
                           <polyline
-                            points={statsHistory.map((stat, i) => {
-                              const x = (i / (statsHistory.length - 1)) * 100;
-                              const y = 100 - ((stat.gold / Math.max(...statsHistory.map(s => s.gold))) * 80);
-                              return `${x}%,${y}%`;
-                            }).join(' ')}
+                            points={goldPolylinePoints}
                             fill="none"
                             stroke="#FFD700"
                             strokeWidth="2"
@@ -850,13 +978,9 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
                     <h4 className="text-white font-semibold mb-2">CS Progression</h4>
                     <div className="relative h-32 bg-gray-700 rounded">
                       <svg width="100%" height="100%" className="absolute inset-0">
-                        {statsHistory.length > 1 && (
+                        {csPolylinePoints && (
                           <polyline
-                            points={statsHistory.map((stat, i) => {
-                              const x = (i / (statsHistory.length - 1)) * 100;
-                              const y = 100 - ((stat.cs / Math.max(...statsHistory.map(s => s.cs))) * 80);
-                              return `${x}%,${y}%`;
-                            }).join(' ')}
+                            points={csPolylinePoints}
                             fill="none"
                             stroke="#00D9FF"
                             strokeWidth="2"

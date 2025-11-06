@@ -16,6 +16,173 @@ const SUMMONER_SPELLS = {
   summonerboost: { key: 'SummonerBoost', label: 'Cleanse' }
 };
 
+const FallbackIcon = ({ type, sizeClass = 'w-12 h-12', altText }) => {
+  const wrapperClasses = `${sizeClass} rounded-lg border border-slate-500/60 bg-slate-900/75 flex items-center justify-center text-primary-gold/80 shadow-md shadow-black/40 backdrop-blur-sm`;
+
+  if (type === 'item') {
+    return (
+      <div className={wrapperClasses} role="img" aria-label={altText || 'Item icon unavailable'}>
+        <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17 6h-2V4c0-1.1-.9-2-2-2h-2c-1.1 0-2 .9-2 2v2H7c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-2h2v2h-2V4zm1 12c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (type === 'monster') {
+    return (
+      <div className={wrapperClasses} role="img" aria-label={altText || 'Monster icon unavailable'}>
+        <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2c3.87 0 7 3.13 7 7 0 3.31-2.29 6.07-5.35 6.81L12 22l-1.65-6.19C7.29 15.07 5 12.31 5 9c0-3.87 3.13-7 7-7zm0 4c-1.66 0-3 1.57-3 3.5S10.34 13 12 13s3-1.57 3-3.5S13.66 6 12 6z" />
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    <div className={wrapperClasses} role="img" aria-label={altText || 'Event icon unavailable'}>
+      <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z" />
+      </svg>
+    </div>
+  );
+};
+
+const ImageWithFallback = ({ src, alt, className, sizeClass = 'w-12 h-12', fallbackType = 'default' }) => {
+  const [hasError, setHasError] = useState(false);
+
+  if (!src || hasError) {
+    return <FallbackIcon type={fallbackType} sizeClass={sizeClass} altText={alt} />;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt || 'Event icon'}
+      className={className}
+      loading="lazy"
+      onError={() => setHasError(true)}
+    />
+  );
+};
+
+const generateSvgId = (prefix) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
+
+const createGradientIcon = ({ stops, borderColor, glyph, className = 'w-12 h-12' }) => {
+  const gradientId = generateSvgId('event-gradient');
+  const glowId = generateSvgId('event-glow');
+
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 48 48"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+          {stops.map((stop, idx) => (
+            <stop
+              key={idx}
+              offset={stop.offset}
+              stopColor={stop.color}
+              stopOpacity={stop.opacity ?? 1}
+            />
+          ))}
+        </linearGradient>
+        <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor={borderColor} floodOpacity="0.35" />
+        </filter>
+      </defs>
+      <g filter={`url(#${glowId})`}>
+        <rect x="4" y="4" width="40" height="40" rx="12" fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="1.5" />
+      </g>
+      <g>{glyph}</g>
+    </svg>
+  );
+};
+
+const renderKillIcon = () =>
+  createGradientIcon({
+    stops: [
+      { offset: '0%', color: '#7f1d1d' },
+      { offset: '55%', color: '#b91c1c' },
+      { offset: '100%', color: '#dc2626' }
+    ],
+    borderColor: 'rgba(248,113,113,0.65)',
+    glyph: (
+      <>
+        <g fill="none" stroke="#fde68a" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16 32L24 24l8 8" />
+          <path d="M18 16l6 6-10 10" />
+          <path d="M30 16l-6 6 10 10" />
+        </g>
+        <path d="M19 12l5 5 5-5 3 3-8 8-8-8z" fill="#fef3c7" fillOpacity="0.9" />
+        <circle cx="24" cy="24" r="4.5" fill="#fef9c3" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2" />
+        <rect x="13.5" y="31.5" width="3.4" height="6.5" rx="1.3" fill="#1f2937" stroke="#fde68a" strokeWidth="1" />
+        <rect x="31.1" y="31.5" width="3.4" height="6.5" rx="1.3" fill="#1f2937" stroke="#fde68a" strokeWidth="1" />
+      </>
+    )
+  });
+
+const renderBuildingIcon = () =>
+  createGradientIcon({
+    stops: [
+      { offset: '0%', color: '#78350f' },
+      { offset: '50%', color: '#b45309' },
+      { offset: '100%', color: '#f59e0b' }
+    ],
+    borderColor: 'rgba(251,191,36,0.7)',
+    glyph: (
+      <>
+        <path
+          d="M17 34h14v8H17z"
+          fill="#fef3c7"
+          stroke="#fde68a"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M19 34V27h-4l9-9 9 9h-4v7z"
+          fill="#ffffff"
+          fillOpacity="0.85"
+          stroke="#ffffff"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        />
+        <rect x="22.5" y="26" width="3" height="5.2" rx="1.2" fill="#fcd34d" stroke="#f59e0b" strokeWidth="1" />
+        <path d="M18 22h12" stroke="#f59e0b" strokeWidth="1.4" strokeLinecap="round" />
+      </>
+    )
+  });
+
+const renderDefaultEventIcon = () =>
+  createGradientIcon({
+    stops: [
+      { offset: '0%', color: '#1e293b' },
+      { offset: '100%', color: '#0f172a' }
+    ],
+    borderColor: 'rgba(148,163,184,0.7)',
+    glyph: (
+      <>
+        <path
+          d="M24 4c-7.74 0-14 6.26-14 14 0 10.5 14 26 14 26s14-15.5 14-26c0-7.74-6.26-14-14-14z"
+          fill="rgba(15,23,42,0.55)"
+          stroke="rgba(226,232,240,0.55)"
+          strokeWidth="1.6"
+        />
+        <circle
+          cx="24"
+          cy="18"
+          r="5"
+          fill="rgba(148,163,184,0.9)"
+          stroke="rgba(226,232,240,0.75)"
+          strokeWidth="1.2"
+        />
+      </>
+    )
+  });
+
 const FrameEventsModal = ({ frame, frameIndex, onClose, onEventClick, participantSummaryMap = {} }) => {
   const [filter, setFilter] = useState('all');
 
@@ -56,13 +223,13 @@ const FrameEventsModal = ({ frame, frameIndex, onClose, onEventClick, participan
   };
 
   const getItemIcon = (itemId, size = 'w-12 h-12') => {
-    if (!itemId) return null;
     return (
-      <img
-        src={`${ITEM_IMAGE_BASE}/${itemId}.png`}
-        alt={`Item ${itemId}`}
+      <ImageWithFallback
+        src={itemId ? `${ITEM_IMAGE_BASE}/${itemId}.png` : null}
+        alt={itemId ? `Item ${itemId}` : 'Unknown item'}
         className={`${size} rounded-lg border border-primary-gold/40 bg-black/40 object-contain shadow-md`}
-        loading="lazy"
+        sizeClass={size}
+        fallbackType="item"
       />
     );
   };
@@ -84,39 +251,24 @@ const FrameEventsModal = ({ frame, frameIndex, onClose, onEventClick, participan
 
     // Return SVG icons as JSX
     if (event.type === 'CHAMPION_KILL') {
-      return (
-        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6.92 5L5 6.92l2.05 2.05L5.5 10.5l1.42 1.42L8.5 10.3l2.05 2.05L12 10.9l1.45 1.45 2.05-2.05 1.58 1.58L18.5 10.3l-1.45-1.45L19 7.4 17.58 6l-1.45 1.45-2.05-2.05L12.63 6.85 10.58 4.8 9.13 6.25 7.08 4.2 6.92 5z"/>
-        </svg>
-      );
+      return renderKillIcon();
     }
     if (event.type === 'ELITE_MONSTER_KILL') {
       const monsterKey = event.monsterSubType || event.monsterType;
       const iconSrc = monsterKey ? MONSTER_ICONS[monsterKey] : undefined;
 
-      if (iconSrc) {
-        return (
-          <img
-            src={iconSrc}
-            alt={monsterKey?.replace(/_/g, ' ') || 'Monster'}
-            className="w-12 h-12 rounded-lg border border-primary-gold/40 bg-black/40 object-cover shadow-md"
-            loading="lazy"
-          />
-        );
-      }
-
       return (
-        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
-        </svg>
+        <ImageWithFallback
+          src={iconSrc}
+          alt={monsterKey?.replace(/_/g, ' ') || 'Monster'}
+          className="w-12 h-12 rounded-lg border border-primary-gold/40 bg-black/40 object-cover shadow-md"
+          sizeClass="w-12 h-12"
+          fallbackType="monster"
+        />
       );
     }
     if (event.type === 'BUILDING_KILL') {
-      return (
-        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 3L2 9v11h20V9l-10-6zm8 16h-4v-4h-4v4H8v-7l4-3 4 3v7z"/>
-        </svg>
-      );
+      return renderBuildingIcon();
     }
     if (event.type === 'ITEM_PURCHASED') {
       return (
@@ -146,11 +298,7 @@ const FrameEventsModal = ({ frame, frameIndex, onClose, onEventClick, participan
         </svg>
       );
     }
-    return (
-      <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-      </svg>
-    );
+    return renderDefaultEventIcon();
   };
 
   const normalizeSpellKey = (spellName) => (spellName ? spellName.trim().toLowerCase() : '');
@@ -182,7 +330,7 @@ const FrameEventsModal = ({ frame, frameIndex, onClose, onEventClick, participan
     return (
       <span
         key={`${participantId || 'unknown'}-${spellName || (damage.basic ? 'basic' : 'unknown')}-${keySuffix}`}
-        className="flex items-center gap-1 px-2 py-1 text-[10px] uppercase tracking-wide rounded-full bg-black/40 border border-white/10 text-text-secondary transition-colors duration-200 hover:border-primary-gold/60 hover:text-white"
+        className="flex items-center gap-1 px-2 py-1 text-[10px] uppercase tracking-wide rounded-full bg-slate-800/60 border border-slate-600/60 text-slate-200 transition-colors duration-200 hover:border-primary-gold/60 hover:text-white"
         title={label}
       >
         {summonerSpell ? (
@@ -225,14 +373,35 @@ const FrameEventsModal = ({ frame, frameIndex, onClose, onEventClick, participan
     return chips;
   };
 
-  const getEventColor = (event) => {
-    if (event.type === 'CHAMPION_KILL') return 'bg-gradient-to-br from-red-950/80 via-red-900/40 to-gray-900/80 border-red-700/60 shadow-lg backdrop-blur-sm';
-    if (event.type === 'ELITE_MONSTER_KILL') return 'bg-gradient-to-br from-purple-950/80 via-purple-900/40 to-gray-900/80 border-purple-700/60 shadow-lg backdrop-blur-sm';
-    if (event.type === 'BUILDING_KILL') return 'bg-gradient-to-br from-amber-900/80 via-amber-800/40 to-gray-900/80 border-amber-600/60 shadow-lg backdrop-blur-sm';
-    if (event.type.includes('ITEM')) return 'bg-gradient-to-br from-indigo-950/80 via-indigo-900/40 to-gray-900/80 border-indigo-700/60 shadow-lg backdrop-blur-sm';
-    if (event.type.includes('WARD')) return 'bg-gradient-to-br from-pink-950/80 via-pink-900/40 to-gray-900/80 border-pink-700/60 shadow-lg backdrop-blur-sm';
-    if (event.type === 'SKILL_LEVEL_UP') return 'bg-gradient-to-br from-teal-950/80 via-teal-900/40 to-gray-900/80 border-teal-700/60 shadow-lg backdrop-blur-sm';
-    return 'bg-gradient-to-br from-slate-950/80 via-slate-900/40 to-gray-900/80 border-gray-700/60 shadow-md backdrop-blur-sm';
+    const baseEventClasses = 'bg-slate-900/75 border border-slate-600/70 rounded-xl shadow-xl shadow-black/30 backdrop-blur-md ring-1 ring-inset ring-white/10';
+  const getEventClasses = (event) => {
+    if (!event) return baseEventClasses;
+
+    if (event.type === 'CHAMPION_KILL') {
+      return `${baseEventClasses} bg-gradient-to-br from-rose-800/45 via-rose-700/30 to-slate-900/65 border-rose-500/45 ring-rose-400/25 shadow-rose-900/25`;
+    }
+
+    if (event.type === 'ELITE_MONSTER_KILL') {
+      return `${baseEventClasses} bg-gradient-to-br from-indigo-800/45 via-indigo-700/30 to-slate-900/65 border-indigo-500/45 ring-indigo-400/25 shadow-indigo-900/25`;
+    }
+
+    if (event.type === 'BUILDING_KILL') {
+      return `${baseEventClasses} bg-gradient-to-br from-amber-700/45 via-amber-600/30 to-slate-900/65 border-amber-500/45 ring-amber-400/25 shadow-amber-900/20`;
+    }
+
+    if (event.type && event.type.includes('ITEM')) {
+      return `${baseEventClasses} bg-gradient-to-br from-sky-800/40 via-sky-700/28 to-slate-900/65 border-sky-500/45 ring-sky-400/25 shadow-sky-900/20`;
+    }
+
+    if (event.type && event.type.includes('WARD')) {
+      return `${baseEventClasses} bg-gradient-to-br from-emerald-800/40 via-emerald-700/28 to-slate-900/65 border-emerald-500/45 ring-emerald-400/25 shadow-emerald-900/20`;
+    }
+
+    if (event.type === 'SKILL_LEVEL_UP') {
+      return `${baseEventClasses} bg-gradient-to-br from-cyan-800/40 via-cyan-700/28 to-slate-900/65 border-cyan-500/45 ring-cyan-400/25 shadow-cyan-900/20`;
+    }
+
+    return `${baseEventClasses} bg-gradient-to-br from-slate-800/40 via-slate-700/28 to-slate-900/65 border-slate-600/60 ring-slate-400/20 shadow-black/25`;
   };
 
   const formatEventType = (type) => {
@@ -353,7 +522,7 @@ const FrameEventsModal = ({ frame, frameIndex, onClose, onEventClick, participan
                 return (
                   <div
                     key={idx}
-                    className={`relative overflow-hidden ${getEventColor(event)} border rounded-xl p-4 transition-transform transform hover:-translate-y-1 hover:scale-[1.01] hover:border-primary-gold/60 ${
+                    className={`relative overflow-hidden ${getEventClasses(event)} p-4 transition-transform transform hover:-translate-y-1 hover:scale-[1.01] hover:border-primary-gold/60 ${
                       event.position ? 'cursor-pointer' : ''
                     }`}
                     onClick={() => event.position && onEventClick && onEventClick(event)}
