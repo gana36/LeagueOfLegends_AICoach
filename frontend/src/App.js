@@ -6,6 +6,7 @@ import TimelineBar from './components/TimelineBar';
 import ParticipantDetailsModal from './components/ParticipantDetailsModal';
 import FrameEventsModal from './components/FrameEventsModal';
 import YearRecapPage from './components/YearRecapPage';
+import PerformanceAnalyticsPage from './components/PerformanceAnalyticsPage';
 import matchData from './data/match-data.json';
 import matchSummary from './data/match-summary.json';
 
@@ -205,6 +206,16 @@ function App() {
           >
             Year Recap
           </button>
+          <button
+            onClick={() => setCurrentPage('performance-analytics')}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              currentPage === 'performance-analytics'
+                ? 'bg-primary-gold text-bg-dark'
+                : 'bg-gray-800 text-white hover:bg-gray-700'
+            }`}
+          >
+            Performance Analytics
+          </button>
         </div>
       </div>
 
@@ -214,6 +225,8 @@ function App() {
           loading={yearRecapLoading}
           error={yearRecapError}
         />
+      ) : currentPage === 'performance-analytics' ? (
+        <PerformanceAnalyticsPage />
       ) : (
         <>
       <div className="flex-1 flex overflow-hidden">
