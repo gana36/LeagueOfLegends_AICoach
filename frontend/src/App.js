@@ -16,6 +16,26 @@ const SNEAKY_PUUID = 'BQD2G_OKDrt_YjF9A5qJvfzClUx0Fe2fPzQm8cqLQWnATfQmzBta-JAW3Z
 
 function App() {
   const [currentPage, setCurrentPage] = useState('match');
+  
+  // Handle hash routing for shared links
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/a/') || hash.startsWith('#/analytics/')) {
+        setCurrentPage('performance-analytics');
+      }
+    };
+    
+    // Check on mount
+    handleHashChange();
+    
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
   const [yearRecapData, setYearRecapData] = useState(null);
   const [yearRecapLoading, setYearRecapLoading] = useState(false);
   const [yearRecapError, setYearRecapError] = useState(null);

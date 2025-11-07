@@ -1,8 +1,17 @@
-import { Search, Settings, Users } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Settings, Users, Share2, Download, Link2, Check } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 interface HeaderProps {
   filters: {
@@ -19,9 +28,77 @@ interface HeaderProps {
   setPlayerA: (name: string) => void;
   playerB: string;
   setPlayerB: (name: string) => void;
+  pageContentRef: React.RefObject<HTMLDivElement>;
 }
 
-export function Header({ filters, setFilters, comparisonMode, setComparisonMode, playerA, setPlayerA, playerB, setPlayerB }: HeaderProps) {
+export function Header({ filters, setFilters, comparisonMode, setComparisonMode, playerA, setPlayerA, playerB, setPlayerB, pageContentRef }: HeaderProps) {
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleCopyLink = async () => {
+    try {
+      // Create ultra-compact URL format
+      // Format: /#/a/[region]-[champion]-[role]-[patch]-[timeRange]-[comparisonMode]-[playerHash]
+      // Single character codes for common values
+      const regionCode = filters.region === 'NA' ? 'n' : filters.region === 'EUW' ? 'e' : filters.region === 'KR' ? 'k' : filters.region === 'CN' ? 'c' : filters.region[0].toLowerCase();
+      const championCode = filters.champion === 'All' ? 'x' : filters.champion.substring(0, 3).toLowerCase();
+      const roleCode = filters.role === 'All' ? 'x' : filters.role[0].toLowerCase();
+      const patchCode = filters.patch.replace('.', ''); // 14.21 -> 1421
+      const timeCode = filters.timeRange;
+      const compCode = comparisonMode ? '1' : '0';
+      
+      // Create short player name hash (first 3 chars, remove spaces)
+      const playerHash = playerA.substring(0, 3).toLowerCase().replace(/\s+/g, '') || 'sum';
+      
+      // Build compact string: r-c-ro-pt-t-cm-p (always 7 parts separated by -)
+      const compact = `${regionCode}-${championCode}-${roleCode}-${patchCode}-${timeCode}-${compCode}-${playerHash}`;
+      
+      const shareUrl = `${window.location.origin}/#/a/${compact}`;
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
+
+  const handleDownloadImage = async () => {
+    if (!pageContentRef.current) {
+      console.error('Page content ref not available');
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      // Dynamically import html2canvas to avoid webpack issues
+      const html2canvas = (await import('html2canvas')).default;
+      
+      // Capture the page content
+      const canvas = await html2canvas(pageContentRef.current, {
+        backgroundColor: '#0f172a', // slate-900 background
+        useCORS: true,
+        logging: false,
+      } as any);
+
+      // Convert canvas to blob and download
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = `performance-stats-${playerA.replace(/\s+/g, '-')}-${Date.now()}.png`;
+          link.href = url;
+          link.click();
+          URL.revokeObjectURL(url);
+        }
+      }, 'image/png');
+    } catch (err) {
+      console.error('Failed to download image:', err);
+      alert('Failed to download image. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-cyan-500/20 shadow-lg shadow-cyan-500/5">
       <div className="flex flex-col gap-6">
@@ -83,6 +160,43 @@ export function Header({ filters, setFilters, comparisonMode, setComparisonMode,
                 className="pl-9 w-40 bg-slate-800/50 border-slate-700 text-slate-200"
               />
             </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="p-2 rounded-lg bg-slate-800/50 border border-slate-700 hover:bg-slate-700/50 transition-colors group relative">
+                  <Share2 className="w-5 h-5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-slate-800 border-slate-700">
+                <DropdownMenuLabel className="text-slate-200">Share Stats</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-slate-700" />
+                <DropdownMenuItem 
+                  onClick={handleCopyLink}
+                  className="text-slate-200 hover:bg-slate-700 hover:text-cyan-400 cursor-pointer focus:bg-slate-700 focus:text-cyan-400"
+                  disabled={copiedLink}
+                >
+                  {copiedLink ? (
+                    <>
+                      <Check className="w-4 h-4 mr-2" />
+                      Link Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="w-4 h-4 mr-2" />
+                      Copy Link
+                    </>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={handleDownloadImage}
+                  className="text-slate-200 hover:bg-slate-700 hover:text-cyan-400 cursor-pointer focus:bg-slate-700 focus:text-cyan-400"
+                  disabled={downloading}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  {downloading ? 'Downloading...' : 'Download Image'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <button className="p-2 rounded-lg bg-slate-800/50 border border-slate-700 hover:bg-slate-700/50 transition-colors">
               <Settings className="w-5 h-5 text-slate-400" />
