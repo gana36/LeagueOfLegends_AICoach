@@ -24,17 +24,17 @@ export function VisionPanel({ comparisonMode, data, loading }: VisionPanelProps)
 
   if (loading) {
     return (
-      <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-green-500/20 shadow-lg shadow-green-500/5">
+      <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-green-500/30 shadow-lg shadow-green-500/5">
         <h2 className="text-xl text-green-400 mb-6">Vision Control</h2>
         <div className="text-center text-slate-400 py-8">Loading vision data...</div>
       </div>
     );
   }
   return (
-    <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-green-500/20 shadow-lg shadow-green-500/5">
+    <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-green-500/30 shadow-lg shadow-green-500/5">
       <h2 className="text-xl text-green-400 mb-6">Vision Control</h2>
       
-      <div className="space-y-6">
+      <div className="space-y-4">
         {visionData.map((item, index) => {
           const Icon = item.icon;
           const percentageA = (item.playerA / item.max) * 100;

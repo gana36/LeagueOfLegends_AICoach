@@ -70,3 +70,4 @@ htmlcov/
 /backend/fetch_sneaky_complete_data.py
 /backend/fetch_sneaky_organized_data.py
 /backend/generate_year_recap_data.py
+/backend/.venv/

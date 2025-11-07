@@ -13,14 +13,17 @@ const API_BASE_URL = 'http://localhost:8000';
 interface PerformanceAnalyticsPageProps {
   puuid?: string;
   playerName?: string;
+  cachedData?: any;
+  loading?: boolean;
+  error?: string | null;
+  onFiltersChange?: (filters: any) => void;
 }
 
-function PerformanceAnalyticsPage({ puuid, playerName }: PerformanceAnalyticsPageProps) {
+function PerformanceAnalyticsPage({ puuid, playerName, cachedData, loading: externalLoading, error: externalError, onFiltersChange }: PerformanceAnalyticsPageProps) {
   const [filters, setFilters] = useState({
     region: 'NA',
     champion: 'All',
     role: 'All',
-    patch: '14.21',
     timeRange: '20'
   });
 
@@ -28,40 +31,23 @@ function PerformanceAnalyticsPage({ puuid, playerName }: PerformanceAnalyticsPag
   const [playerA, setPlayerA] = useState(playerName || 'Summoner Performance');
   const [playerB, setPlayerB] = useState('Rival Player');
 
-  // Analytics data state
+  // Use cached data from App.js or local state
   const [visionData, setVisionData] = useState(null);
   const [objectiveData, setObjectiveData] = useState(null);
   const [itemRuneData, setItemRuneData] = useState(null);
   const [trendsData, setTrendsData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [kpiData, setKpiData] = useState(null);
+  const [championData, setChampionData] = useState(null);
+  const [radarData, setRadarData] = useState(null);
 
-  // Fetch analytics data
+  const loading = externalLoading ?? false;
+  const error = externalError ?? null;
+
+  // Update local state when cached data changes
   useEffect(() => {
-    if (puuid) {
-      fetchAnalyticsData();
-    }
-  }, [puuid]);
+    if (cachedData) {
+      const data = cachedData;
 
-  const fetchAnalyticsData = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Fetch all analytics in a single call
-      const response = await fetch(`${API_BASE_URL}/api/analytics/performance`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ puuid })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch analytics: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // Extract each section from the unified response
       setVisionData({
         success: data.success,
         matchCount: data.matchCount,
@@ -90,11 +76,39 @@ function PerformanceAnalyticsPage({ puuid, playerName }: PerformanceAnalyticsPag
         matches: data.trends.matches
       });
 
-    } catch (err) {
-      console.error('Error fetching analytics:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      setKpiData({
+        success: data.success,
+        matchCount: data.matchCount,
+        kda: data.kpi.kda,
+        damageShare: data.kpi.damageShare,
+        goldPerMinute: data.kpi.goldPerMinute,
+        visionScore: data.kpi.visionScore,
+        winRate: data.kpi.winRate
+      });
+
+      setChampionData({
+        success: data.success,
+        matchCount: data.matchCount,
+        champions: data.championBreakdown
+      });
+
+      setRadarData({
+        success: data.success,
+        kda: data.radarData.kda,
+        damage: data.radarData.damage,
+        vision: data.radarData.vision,
+        objectives: data.radarData.objectives,
+        farming: data.radarData.farming,
+        survivability: data.radarData.survivability
+      });
+    }
+  }, [cachedData]);
+
+  // Handle filter changes
+  const handleFiltersChange = (newFilters: any) => {
+    setFilters(newFilters);
+    if (onFiltersChange) {
+      onFiltersChange(newFilters);
     }
   };
   const pageContentRef = useRef<HTMLDivElement>(null);
@@ -211,7 +225,7 @@ function PerformanceAnalyticsPage({ puuid, playerName }: PerformanceAnalyticsPag
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 overflow-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 overflow-auto scrollbar-hide">
       <div className="relative">
         {/* Background glow effects */}
         <div className="fixed top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
@@ -221,7 +235,7 @@ function PerformanceAnalyticsPage({ puuid, playerName }: PerformanceAnalyticsPag
         <div ref={pageContentRef} className="relative z-10 p-6 space-y-6">
           <Header
             filters={filters}
-            setFilters={setFilters}
+            setFilters={handleFiltersChange}
             comparisonMode={comparisonMode}
             setComparisonMode={setComparisonMode}
             playerA={playerA}
@@ -231,20 +245,20 @@ function PerformanceAnalyticsPage({ puuid, playerName }: PerformanceAnalyticsPag
             pageContentRef={pageContentRef}
           />
 
-          <KPICards comparisonMode={comparisonMode} />
+          <KPICards comparisonMode={comparisonMode} data={kpiData} loading={loading} />
 
-          <TrendCharts comparisonMode={comparisonMode} data={trendsData} loading={loading} />
+          <TrendCharts comparisonMode={comparisonMode} data={trendsData} loading={loading} filters={filters} />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <ChampionGrid filters={filters} comparisonMode={comparisonMode} />
+              <ChampionGrid filters={filters} comparisonMode={comparisonMode} data={championData} loading={loading} />
             </div>
             <div>
-              <RadarChartPanel comparisonMode={comparisonMode} />
+              <RadarChartPanel comparisonMode={comparisonMode} data={radarData} loading={loading} />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-6">
             <ObjectivePanel
               comparisonMode={comparisonMode}
               data={objectiveData}

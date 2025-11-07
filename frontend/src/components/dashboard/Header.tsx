@@ -18,7 +18,7 @@ interface HeaderProps {
     region: string;
     champion: string;
     role: string;
-    patch: string;
+    patch?: string;
     timeRange: string;
   };
   setFilters: (filters: any) => void;
@@ -43,7 +43,7 @@ export function Header({ filters, setFilters, comparisonMode, setComparisonMode,
       const regionCode = filters.region === 'NA' ? 'n' : filters.region === 'EUW' ? 'e' : filters.region === 'KR' ? 'k' : filters.region === 'CN' ? 'c' : filters.region[0].toLowerCase();
       const championCode = filters.champion === 'All' ? 'x' : filters.champion.substring(0, 3).toLowerCase();
       const roleCode = filters.role === 'All' ? 'x' : filters.role[0].toLowerCase();
-      const patchCode = filters.patch.replace('.', ''); // 14.21 -> 1421
+      const patchCode = filters.patch ? filters.patch.replace('.', '') : '0000'; // Default to 0000 if no patch
       const timeCode = filters.timeRange;
       const compCode = comparisonMode ? '1' : '0';
       
@@ -244,17 +244,6 @@ export function Header({ filters, setFilters, comparisonMode, setComparisonMode,
               <SelectItem value="Mid">Mid</SelectItem>
               <SelectItem value="Bot">Bot</SelectItem>
               <SelectItem value="Support">Support</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filters.patch} onValueChange={(value) => setFilters({ ...filters, patch: value })}>
-            <SelectTrigger className="w-28 bg-slate-800/50 border-slate-700 text-slate-200">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="14.21">14.21</SelectItem>
-              <SelectItem value="14.20">14.20</SelectItem>
-              <SelectItem value="14.19">14.19</SelectItem>
             </SelectContent>
           </Select>
 

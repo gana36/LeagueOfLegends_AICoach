@@ -11,15 +11,35 @@ const radarData = [
 
 interface RadarChartPanelProps {
   comparisonMode: boolean;
+  data?: any;
+  loading?: boolean;
 }
 
-export function RadarChartPanel({ comparisonMode }: RadarChartPanelProps) {
+export function RadarChartPanel({ comparisonMode, data, loading }: RadarChartPanelProps) {
+  // Build radar data from API response
+  const radarDataToDisplay = data ? [
+    { subject: 'KDA', playerA: data.kda, playerB: 68, average: 60 },
+    { subject: 'Damage', playerA: data.damage, playerB: 62, average: 65 },
+    { subject: 'Vision', playerA: data.vision, playerB: 75, average: 55 },
+    { subject: 'Objectives', playerA: data.objectives, playerB: 72, average: 68 },
+    { subject: 'Farming', playerA: data.farming, playerB: 70, average: 70 },
+    { subject: 'Survivability', playerA: data.survivability, playerB: 58, average: 62 }
+  ] : radarData;
+
+  if (loading) {
+    return (
+      <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-cyan-500/20 shadow-lg shadow-cyan-500/5 h-full">
+        <h2 className="text-xl text-cyan-400 mb-4">Overall Balance</h2>
+        <div className="text-center text-slate-400 py-8">Loading balance data...</div>
+      </div>
+    );
+  }
   return (
     <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-cyan-500/20 shadow-lg shadow-cyan-500/5 h-full">
       <h2 className="text-xl text-cyan-400 mb-4">Overall Balance</h2>
       
       <ResponsiveContainer width="100%" height={300}>
-        <RadarChart data={radarData}>
+        <RadarChart data={radarDataToDisplay}>
           <PolarGrid stroke="#334155" />
           <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 12 }} />
           <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 10 }} />

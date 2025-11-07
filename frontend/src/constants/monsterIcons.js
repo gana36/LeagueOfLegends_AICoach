@@ -21,6 +21,10 @@ export const MONSTER_ICONS = {
   CRIMSON_RAPTOR: 'https://raw.communitydragon.org/latest/game/assets/characters/sru_razorbeak/hud/razorbeak_square.png',
   ANCIENT_KRUG: 'https://raw.communitydragon.org/latest/game/assets/characters/sru_krug/hud/ancientkrug_square.png',
   RIFT_SCUTTLER: 'https://raw.communitydragon.org/latest/game/assets/characters/sru_crab/hud/crab_square_0.png',
+  CONTROL_WARD:'https://ddragon.leagueoflegends.com/cdn/15.21.1/img/item/2055.png',
+  STEALTH_WARD:'https://ddragon.leagueoflegends.com/cdn/15.21.1/img/item/2056.png',
+  PLACED_WARD:'https://images.1v9.gg/wardskin/0.webp',
+
 
   // Voidgrub Horde
   HORDE: 'https://ddragon.leagueoflegends.com/cdn/5.5.1/img/ui/minion.png'

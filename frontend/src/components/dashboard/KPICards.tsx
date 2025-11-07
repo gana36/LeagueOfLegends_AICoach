@@ -133,9 +133,80 @@ const progressColorClasses = {
 
 interface KPICardsProps {
   comparisonMode: boolean;
+  data?: any;
+  loading?: boolean;
 }
 
-export function KPICards({ comparisonMode }: KPICardsProps) {
+export function KPICards({ comparisonMode, data, loading }: KPICardsProps) {
+  // Build KPI array from real data if available
+  const kpiData = data ? [
+    {
+      title: 'KDA Ratio',
+      value: data.kda.toFixed(2),
+      trend: '+12%',
+      trendUp: true,
+      subtitle: `Over ${data.matchCount} games`,
+      progress: Math.min(data.kda * 20, 100),
+      icon: Trophy,
+      color: 'cyan'
+    },
+    {
+      title: 'Damage Share',
+      value: `${data.damageShare.toFixed(1)}%`,
+      trend: '+5%',
+      trendUp: true,
+      subtitle: 'Team damage %',
+      progress: Math.min(data.damageShare * 3, 100),
+      icon: Swords,
+      color: 'red'
+    },
+    {
+      title: 'Gold per Min',
+      value: data.goldPerMinute.toString(),
+      trend: '-3%',
+      trendUp: false,
+      subtitle: `Over ${data.matchCount} games`,
+      progress: Math.min((data.goldPerMinute / 500) * 100, 100),
+      icon: Coins,
+      color: 'amber'
+    },
+    {
+      title: 'Vision Score',
+      value: data.visionScore.toFixed(1),
+      trend: '+18%',
+      trendUp: true,
+      subtitle: 'Per game average',
+      progress: Math.min((data.visionScore / 60) * 100, 100),
+      icon: Eye,
+      color: 'green'
+    },
+    {
+      title: 'Win Rate',
+      value: `${data.winRate.toFixed(1)}%`,
+      trend: '+8%',
+      trendUp: true,
+      subtitle: `Last ${data.matchCount} games`,
+      progress: data.winRate,
+      icon: Trophy,
+      color: 'purple'
+    }
+  ] : kpiDataPlayerA;
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+            <div className="animate-pulse space-y-4">
+              <div className="h-12 bg-slate-800 rounded"></div>
+              <div className="h-8 bg-slate-800 rounded"></div>
+              <div className="h-4 bg-slate-800 rounded"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
   if (comparisonMode) {
     return (
       <div className="space-y-4">
@@ -146,7 +217,7 @@ export function KPICards({ comparisonMode }: KPICardsProps) {
             <span className="text-sm text-cyan-400">Player A Stats</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {kpiDataPlayerA.map((kpi, index) => {
+            {kpiData.map((kpi, index) => {
               const Icon = kpi.icon;
               return (
                 <div
@@ -228,7 +299,7 @@ export function KPICards({ comparisonMode }: KPICardsProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-      {kpiDataPlayerA.map((kpi, index) => {
+      {kpiData.map((kpi, index) => {
         const Icon = kpi.icon;
         return (
           <div

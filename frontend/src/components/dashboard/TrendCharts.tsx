@@ -6,13 +6,32 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return (
       <div className="bg-slate-900/95 backdrop-blur-sm border border-cyan-500/30 rounded-lg p-3 shadow-lg">
         <p className="text-slate-300 text-sm mb-2 font-semibold">Match {label}</p>
-        {payload.map((entry: any, index: number) => (
-          <p key={index} style={{ color: entry.color }} className="text-sm">
-            {entry.name}: {typeof entry.value === 'number' && entry.value > 1000
-              ? entry.value.toLocaleString()
-              : entry.value}
-          </p>
-        ))}
+        {payload.map((entry: any, index: number) => {
+          let formattedValue = entry.value;
+
+          // Format numbers based on type
+          if (typeof entry.value === 'number') {
+            if (entry.value > 1000) {
+              // Large numbers (damage) - use commas, no decimals
+              formattedValue = Math.round(entry.value).toLocaleString();
+            } else if (entry.dataKey === 'goldPerMinute') {
+              // Gold per minute - 2 decimal places
+              formattedValue = entry.value.toFixed(2);
+            } else if (entry.dataKey === 'visionScore' || entry.dataKey === 'kda') {
+              // Vision score and KDA - 1 decimal place
+              formattedValue = entry.value.toFixed(1);
+            } else {
+              // Deaths and other integers - no decimals
+              formattedValue = Math.round(entry.value);
+            }
+          }
+
+          return (
+            <p key={index} style={{ color: entry.color }} className="text-sm">
+              {entry.name}: {formattedValue}
+            </p>
+          );
+        })}
         {data.win !== undefined && (
           <p className={`text-xs mt-1 ${data.win ? 'text-green-400' : 'text-red-400'}`}>
             {data.win ? '✓ Victory' : '✗ Defeat'}
@@ -28,19 +47,23 @@ interface TrendChartsProps {
   comparisonMode: boolean;
   data?: any;
   loading?: boolean;
+  filters?: any;
 }
 
-export function TrendCharts({ comparisonMode, data, loading }: TrendChartsProps) {
+export function TrendCharts({ comparisonMode, data, loading, filters }: TrendChartsProps) {
+  // Backend already filters data, so we just use what we get
+  const matches = data?.matches || [];
+
   // Transform API data into chart format
-  const chartData = data?.matches ? data.matches.map((match: any, index: number) => ({
-    match: data.matches.length - index, // Reverse order (oldest = 1, newest = 20)
+  const chartData = matches.map((match: any, index: number) => ({
+    match: matches.length - index, // Reverse order (oldest = 1, newest = N)
     goldPerMinute: match.goldPerMinute,
     damageToChampions: match.damageToChampions,
     deaths: match.deaths,
     visionScore: match.visionScore,
     kda: match.kda,
     win: match.win
-  })).reverse() : [];
+  })).reverse();
 
   // Use dummy data if no real data
   const goldData = chartData.length > 0

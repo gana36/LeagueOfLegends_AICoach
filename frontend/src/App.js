@@ -35,6 +35,15 @@ function App() {
   const [yearRecapData, setYearRecapData] = useState(null);
   const [yearRecapLoading, setYearRecapLoading] = useState(false);
   const [yearRecapError, setYearRecapError] = useState(null);
+  const [performanceAnalyticsData, setPerformanceAnalyticsData] = useState(null);
+  const [performanceAnalyticsLoading, setPerformanceAnalyticsLoading] = useState(false);
+  const [performanceAnalyticsError, setPerformanceAnalyticsError] = useState(null);
+  const [performanceAnalyticsFilters, setPerformanceAnalyticsFilters] = useState({
+    region: 'NA',
+    champion: 'All',
+    role: 'All',
+    timeRange: '20'
+  });
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
@@ -187,6 +196,9 @@ function App() {
     // Reset year recap data so it fetches for the new player
     setYearRecapData(null);
 
+    // Reset performance analytics data so it fetches for the new player
+    setPerformanceAnalyticsData(null);
+
     // Reset match data
     setCurrentMatchId(null);
     setMatchData(EMPTY_MATCH_DATA);
@@ -255,10 +267,8 @@ function App() {
     }
   };
 
-  // Fetch year recap data when switching to that page
+  // Fetch year recap data
   const fetchYearRecapData = async () => {
-    if (yearRecapData) return; // Already fetched
-
     setYearRecapLoading(true);
     setYearRecapError(null);
 
@@ -288,10 +298,48 @@ function App() {
     }
   };
 
-  // Fetch year recap data when navigating to that page or when player changes
+  // Fetch performance analytics data
+  const fetchPerformanceAnalyticsData = async (filters = performanceAnalyticsFilters) => {
+    setPerformanceAnalyticsLoading(true);
+    setPerformanceAnalyticsError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/analytics/performance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          puuid: currentPuuid,
+          champion: filters.champion !== 'All Champions' ? filters.champion : 'All',
+          role: filters.role !== 'All Roles' ? filters.role : 'All',
+          timeRange: parseInt(filters.timeRange)
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setPerformanceAnalyticsData(data);
+    } catch (error) {
+      console.error('Error fetching performance analytics:', error);
+      setPerformanceAnalyticsError(error.message);
+    } finally {
+      setPerformanceAnalyticsLoading(false);
+    }
+  };
+
+  // Fetch year recap data when navigating to that page (only if not already loaded)
   useEffect(() => {
-    if (currentPage === 'year-recap') {
+    if (currentPage === 'year-recap' && !yearRecapData) {
       fetchYearRecapData();
+    }
+  }, [currentPage, currentPuuid]);
+
+  // Fetch performance analytics when navigating to that page (only if not already loaded)
+  useEffect(() => {
+    if (currentPage === 'performance-analytics' && !performanceAnalyticsData) {
+      fetchPerformanceAnalyticsData();
     }
   }, [currentPage, currentPuuid]);
 
@@ -354,7 +402,17 @@ function App() {
           error={yearRecapError}
         />
       ) : currentPage === 'performance-analytics' ? (
-        <PerformanceAnalyticsPage puuid={currentPuuid} playerName={currentPlayerName} />
+        <PerformanceAnalyticsPage
+          puuid={currentPuuid}
+          playerName={currentPlayerName}
+          cachedData={performanceAnalyticsData}
+          loading={performanceAnalyticsLoading}
+          error={performanceAnalyticsError}
+          onFiltersChange={(filters) => {
+            setPerformanceAnalyticsFilters(filters);
+            fetchPerformanceAnalyticsData(filters);
+          }}
+        />
       ) : (
         <>
       {/* Match Selector Bar */}

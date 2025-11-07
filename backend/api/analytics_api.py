@@ -18,6 +18,13 @@ class VisionStatsRequest(BaseModel):
     puuid: str
 
 
+class PerformanceRequest(BaseModel):
+    puuid: str
+    champion: Optional[str] = None  # Filter by champion name (e.g., "Yasuo")
+    role: Optional[str] = None  # Filter by role (e.g., "Mid", "Top")
+    timeRange: Optional[int] = None  # Limit number of matches (e.g., 20, 50)
+
+
 def get_player_participant_data(match_data: Dict, target_puuid: str) -> Optional[Dict]:
     """Find the player's participant data in a match"""
     try:
@@ -31,7 +38,7 @@ def get_player_participant_data(match_data: Dict, target_puuid: str) -> Optional
 
 
 @router.post("/performance")
-async def get_performance_analytics(request: VisionStatsRequest):
+async def get_performance_analytics(request: PerformanceRequest):
     """
     Get complete performance analytics for a player in one call
 
@@ -88,6 +95,12 @@ async def get_performance_analytics(request: VisionStatsRequest):
         # Performance trends - store per match
         performance_trends = []
 
+        # Champion breakdown - track stats per champion
+        champion_stats = defaultdict(lambda: {
+            'matches': 0, 'wins': 0, 'totalKDA': 0, 'totalDamageShare': 0,
+            'totalVisionScore': 0, 'totalGoldPerMin': 0
+        })
+
         match_count = 0
 
         # Process all matches in one pass
@@ -97,6 +110,30 @@ async def get_performance_analytics(request: VisionStatsRequest):
 
             if not player_data:
                 continue
+
+            # === Apply Filters ===
+            # Filter by champion
+            if request.champion and request.champion != 'All':
+                if player_data.get('championName', '') != request.champion:
+                    continue
+
+            # Filter by role
+            if request.role and request.role != 'All':
+                player_role = player_data.get('teamPosition', '')
+                # Map roles: TOP, JUNGLE, MIDDLE, BOTTOM, UTILITY
+                role_map = {
+                    'Top': 'TOP',
+                    'Jungle': 'JUNGLE',
+                    'Mid': 'MIDDLE',
+                    'Bot': 'BOTTOM',
+                    'Support': 'UTILITY'
+                }
+                if role_map.get(request.role, request.role) != player_role:
+                    continue
+
+            # Limit by time range
+            if request.timeRange and match_count >= request.timeRange:
+                break
 
             match_count += 1
             match_info = match_data.get('info', {})
@@ -139,17 +176,35 @@ async def get_performance_analytics(request: VisionStatsRequest):
                         rune_counts[perk_id] += 1
 
             # === Performance Trends ===
-            game_duration_minutes = game_duration / 60 if game_duration > 0 else 1
+            # Use pre-calculated values from challenges to avoid Decimal issues
+            gold_per_min = float(challenges.get('goldPerMinute', 0))
+            kda = float(challenges.get('kda', 0))
+            damage_share = float(challenges.get('teamDamagePercentage', 0)) * 100 if challenges.get('teamDamagePercentage') else 0
+            vision_score = int(player_data.get('visionScore', 0))
+            is_win = player_data.get('win', False)
+
             performance_trends.append({
                 'matchId': match_data.get('metadata', {}).get('matchId'),
-                'gameCreation': match_info.get('gameCreation'),
-                'goldPerMinute': round(player_data.get('goldEarned', 0) / game_duration_minutes, 1),
-                'damageToChampions': player_data.get('totalDamageDealtToChampions', 0),
-                'deaths': player_data.get('deaths', 0),
-                'visionScore': player_data.get('visionScore', 0),
-                'kda': round((player_data.get('kills', 0) + player_data.get('assists', 0)) / max(player_data.get('deaths', 0), 1), 2),
-                'win': player_data.get('win', False)
+                'gameCreation': int(match_info.get('gameCreation', 0)),
+                'goldPerMinute': gold_per_min,
+                'damageToChampions': int(player_data.get('totalDamageDealtToChampions', 0)),
+                'deaths': int(player_data.get('deaths', 0)),
+                'visionScore': vision_score,
+                'kills': int(player_data.get('kills', 0)),
+                'assists': int(player_data.get('assists', 0)),
+                'kda': kda,
+                'win': is_win,
+                'damageShare': damage_share
             })
+
+            # === Champion Stats ===
+            champion_name = player_data.get('championName', 'Unknown')
+            champion_stats[champion_name]['matches'] += 1
+            champion_stats[champion_name]['wins'] += 1 if is_win else 0
+            champion_stats[champion_name]['totalKDA'] += kda
+            champion_stats[champion_name]['totalDamageShare'] += damage_share
+            champion_stats[champion_name]['totalVisionScore'] += vision_score
+            champion_stats[champion_name]['totalGoldPerMin'] += gold_per_min
 
         if match_count == 0:
             raise HTTPException(status_code=404, detail="No valid match data found")
@@ -204,10 +259,53 @@ async def get_performance_analytics(request: VisionStatsRequest):
         # Sort performance trends by date (newest first for display)
         performance_trends.sort(key=lambda x: x.get('gameCreation', 0), reverse=True)
 
+        # === Calculate KPI aggregates ===
+        total_kda = sum(match.get('kda', 0) for match in performance_trends)
+        total_damage_share = sum(match.get('damageShare', 0) for match in performance_trends)
+        total_gold_per_min = sum(match.get('goldPerMinute', 0) for match in performance_trends)
+        total_wins = sum(1 for match in performance_trends if match.get('win', False))
+
+        kpi_stats = {
+            'kda': round(total_kda / match_count, 2) if match_count > 0 else 0,
+            'damageShare': round(total_damage_share / match_count, 1) if match_count > 0 else 0,
+            'goldPerMinute': round(total_gold_per_min / match_count, 0) if match_count > 0 else 0,
+            'visionScore': vision_averages['visionScore'],
+            'winRate': round((total_wins / match_count) * 100, 1) if match_count > 0 else 0
+        }
+
+        # === Champion Breakdown ===
+        champion_breakdown = []
+        for champ_name, stats in champion_stats.items():
+            if stats['matches'] > 0:
+                champion_breakdown.append({
+                    'champion': champ_name,
+                    'matches': stats['matches'],
+                    'avgKDA': round(stats['totalKDA'] / stats['matches'], 2),
+                    'winRate': round((stats['wins'] / stats['matches']) * 100, 1),
+                    'damage': round(stats['totalDamageShare'] / stats['matches'], 1),
+                    'vision': round(stats['totalVisionScore'] / stats['matches'], 1),
+                    'gpm': round(stats['totalGoldPerMin'] / stats['matches'], 0)
+                })
+
+        # Sort by matches played (descending)
+        champion_breakdown.sort(key=lambda x: x['matches'], reverse=True)
+
+        # === Radar Chart Data ===
+        # Normalize KPI stats to 0-100 scale for radar chart
+        radar_data = {
+            'kda': min(round((kpi_stats['kda'] / 8) * 100, 1), 100),  # Assume 8 KDA is perfect
+            'damage': min(round((kpi_stats['damageShare'] / 35) * 100, 1), 100),  # Assume 35% is perfect
+            'vision': min(round((kpi_stats['visionScore'] / 60) * 100, 1), 100),  # Assume 60 vision is perfect
+            'objectives': min(round(objective_participation, 1), 100),
+            'farming': min(round((kpi_stats['goldPerMinute'] / 600) * 100, 1), 100),  # Assume 600 GPM is perfect
+            'survivability': min(round(100 - (sum(match.get('deaths', 0) for match in performance_trends) / match_count) * 10, 1), 100) if match_count > 0 else 50  # Lower deaths = higher survivability
+        }
+
         # === Return Everything ===
         return {
             'success': True,
             'matchCount': match_count,
+            'kpi': kpi_stats,
             'vision': {
                 'averages': vision_averages,
                 'totals': vision_totals
@@ -224,8 +322,10 @@ async def get_performance_analytics(request: VisionStatsRequest):
                 'topRunes': runes_with_rates
             },
             'trends': {
-                'matches': performance_trends[:20]  # Last 20 matches for charts
-            }
+                'matches': performance_trends[:50]  # Last 50 matches (frontend will filter based on timeRange)
+            },
+            'championBreakdown': champion_breakdown,
+            'radarData': radar_data
         }
 
     except HTTPException:
@@ -573,3 +673,80 @@ async def get_items_runes_stats(request: VisionStatsRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/items/{item_id}")
+async def get_item_info(item_id: str):
+    """Get item information by ID"""
+    try:
+        import json
+        item_path = os.path.join(os.path.dirname(__file__), '..', 'static_data', 'item.json')
+
+        with open(item_path, 'r', encoding='utf-8') as f:
+            item_data = json.load(f)
+
+        if item_id in item_data.get('data', {}):
+            item = item_data['data'][item_id]
+            return {
+                'id': item_id,
+                'name': item.get('name', f'Item {item_id}'),
+                'description': item.get('plaintext', ''),
+                'image': item.get('image', {}).get('full', f'{item_id}.png')
+            }
+        else:
+            return {
+                'id': item_id,
+                'name': f'Item {item_id}',
+                'description': '',
+                'image': f'{item_id}.png'
+            }
+    except Exception as e:
+        print(f"Error loading item {item_id}: {e}")
+        return {
+            'id': item_id,
+            'name': f'Item {item_id}',
+            'description': '',
+            'image': f'{item_id}.png'
+        }
+
+
+@router.get("/runes/{rune_id}")
+async def get_rune_info(rune_id: int):
+    """Get rune information by ID"""
+    try:
+        import json
+        rune_path = os.path.join(os.path.dirname(__file__), '..', 'static_data', 'runesReforged.json')
+
+        with open(rune_path, 'r', encoding='utf-8') as f:
+            rune_trees = json.load(f)
+
+        # Search through all rune trees and slots
+        for tree in rune_trees:
+            for slot in tree.get('slots', []):
+                for rune in slot.get('runes', []):
+                    if rune.get('id') == rune_id:
+                        return {
+                            'id': rune_id,
+                            'name': rune.get('name', f'Rune {rune_id}'),
+                            'key': rune.get('key', ''),
+                            'icon': rune.get('icon', ''),
+                            'shortDesc': rune.get('shortDesc', '')
+                        }
+
+        # Rune not found
+        return {
+            'id': rune_id,
+            'name': f'Rune {rune_id}',
+            'key': '',
+            'icon': '',
+            'shortDesc': ''
+        }
+    except Exception as e:
+        print(f"Error loading rune {rune_id}: {e}")
+        return {
+            'id': rune_id,
+            'name': f'Rune {rune_id}',
+            'key': '',
+            'icon': '',
+            'shortDesc': ''
+        }
