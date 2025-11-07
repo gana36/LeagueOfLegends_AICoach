@@ -89,6 +89,19 @@ class YearRecapHeatmapRequest(BaseModel):
     player_name: str = "Player"
 
 
+class PlayerComparisonRequest(BaseModel):
+    puuid1: str
+    puuid2: str
+    match_count: int = 50
+    region: str = "americas"
+
+
+class ShareableMomentsRequest(BaseModel):
+    puuid: str
+    match_count: int = 50
+    region: str = "americas"
+
+
 @app.get("/")
 async def root():
     return {
@@ -361,6 +374,60 @@ async def get_demo_strengths_weaknesses():
     """Get demo strengths and weaknesses for testing"""
     logger.info("Returning demo strengths and weaknesses")
     return DEMO_STRENGTHS_WEAKNESSES
+
+
+# ============= PROGRESS VISUALIZATION ENDPOINTS =============
+
+@app.post("/api/analysis/progress")
+async def get_progress_visualization(request: MatchAnalysisRequest):
+    """Get detailed progress visualization data over time"""
+    try:
+        match_ids = await riot_client.get_match_history(
+            request.puuid,
+            count=request.match_count
+        )
+        matches = await riot_client.get_multiple_matches(match_ids)
+        performance_trends = match_analyzer._calculate_performance_trends(request.puuid, matches)
+        return {
+            "time_series": performance_trends.get("time_series", []),
+            "rolling_averages": performance_trends.get("rolling_averages", []),
+            "trends": performance_trends
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating progress data: {str(e)}")
+
+
+# ============= SOCIAL COMPARISON ENDPOINTS =============
+
+@app.post("/api/social/compare")
+async def compare_players(request: PlayerComparisonRequest):
+    """Compare two players' performance and playstyle compatibility"""
+    try:
+        comparison = await match_analyzer.compare_players(
+            request.puuid1,
+            request.puuid2,
+            match_count=request.match_count,
+            region=request.region
+        )
+        return comparison
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error comparing players: {str(e)}")
+
+
+# ============= SHAREABLE MOMENTS ENDPOINTS =============
+
+@app.post("/api/social/shareable-moments")
+async def get_shareable_moments(request: ShareableMomentsRequest):
+    """Generate shareable moments and insights for social media"""
+    try:
+        moments = await match_analyzer.generate_shareable_moments(
+            request.puuid,
+            match_count=request.match_count,
+            region=request.region
+        )
+        return moments
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating shareable moments: {str(e)}")
 
 
 if __name__ == "__main__":

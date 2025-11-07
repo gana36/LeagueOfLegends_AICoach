@@ -161,6 +161,9 @@ const YearRecapPage = ({ yearRecapData, loading, error }) => {
   }, [currentData]);
 
   const stats = yearRecapData?.stats || {};
+  const highlights = yearRecapData?.highlights || {};
+  const mostPlayedChampions = highlights?.most_played_champions || [];
+  const highlightMatches = highlights?.highlight_matches || [];
 
   // Loading state
   if (loading) {
@@ -463,6 +466,60 @@ const YearRecapPage = ({ yearRecapData, loading, error }) => {
                 ))}
               </div>
             </div>
+
+            {/* Most Played Champions */}
+            {mostPlayedChampions.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-gray-700">
+                <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wide mb-3">
+                  Most Played Champions
+                </h3>
+                <div className="space-y-2">
+                  {mostPlayedChampions.slice(0, 5).map((champ, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-gray-800 rounded-lg p-3 border border-gray-700"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-white font-medium">{champ.champion}</span>
+                        <span className="text-text-secondary text-xs">{champ.games} games</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-green-400">{champ.win_rate.toFixed(1)}% WR</span>
+                        <span className="text-text-secondary">•</span>
+                        <span className="text-primary-gold">{champ.avg_kda.toFixed(2)} KDA</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Highlight Matches */}
+            {highlightMatches.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-gray-700">
+                <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wide mb-3">
+                  Highlight Matches
+                </h3>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {highlightMatches.slice(0, 5).map((match, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-gray-800 rounded-lg p-3 border border-gray-700"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-white font-medium">{match.champion}</span>
+                        <span className={`text-xs font-semibold ${match.win ? 'text-green-400' : 'text-red-400'}`}>
+                          {match.win ? 'WIN' : 'LOSS'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-text-secondary">
+                        {match.kills}/{match.deaths}/{match.assists} • {match.kda.toFixed(2)} KDA
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

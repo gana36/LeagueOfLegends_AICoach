@@ -7,6 +7,7 @@ import ParticipantDetailsModal from './components/ParticipantDetailsModal';
 import FrameEventsModal from './components/FrameEventsModal';
 import YearRecapPage from './components/YearRecapPage';
 import PerformanceAnalyticsPage from './components/PerformanceAnalyticsPage';
+import { FeaturesPage } from './components/FeaturesPage';
 import matchData from './data/match-data.json';
 import matchSummary from './data/match-summary.json';
 
@@ -216,6 +217,16 @@ function App() {
           >
             Performance Analytics
           </button>
+          <button
+            onClick={() => setCurrentPage('features')}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              currentPage === 'features'
+                ? 'bg-primary-gold text-bg-dark'
+                : 'bg-gray-800 text-white hover:bg-gray-700'
+            }`}
+          >
+            Insights & Social
+          </button>
         </div>
       </div>
 
@@ -227,6 +238,8 @@ function App() {
         />
       ) : currentPage === 'performance-analytics' ? (
         <PerformanceAnalyticsPage />
+      ) : currentPage === 'features' ? (
+        <FeaturesPage />
       ) : (
         <>
       <div className="flex-1 flex overflow-hidden">
