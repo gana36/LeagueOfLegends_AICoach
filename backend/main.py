@@ -17,6 +17,7 @@ from services.demo_data import (
     DEMO_INSIGHTS,
     DEMO_STRENGTHS_WEAKNESSES
 )
+from api.player_api import router as player_router
 
 # Configure logging
 logging.basicConfig(
@@ -38,11 +39,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include routers
+app.include_router(player_router)
+
 # Initialize services
 riot_client = RiotAPIClient(api_key=os.getenv("RIOT_API_KEY"))
-bedrock_service = BedrockAIService()
-match_analyzer = MatchAnalyzer(riot_client, bedrock_service)
-coaching_agent = CoachingAgent(riot_client)
+
+# Initialize Bedrock service (optional - some features won't work if unavailable)
+try:
+    bedrock_service = BedrockAIService()
+    logger.info("Bedrock AI service initialized successfully")
+except Exception as e:
+    logger.warning(f"Bedrock AI service initialization failed: {e}")
+    logger.warning("AI-powered features will be unavailable")
+    bedrock_service = None
+
+match_analyzer = MatchAnalyzer(riot_client, bedrock_service) if bedrock_service else None
+coaching_agent = CoachingAgent(riot_client) if riot_client else None
 timeline_aggregator = TimelineAggregator()
 
 
@@ -132,6 +145,8 @@ async def get_match_history(request: MatchAnalysisRequest):
 @app.post("/api/analysis/year-recap")
 async def generate_year_recap(request: MatchAnalysisRequest):
     """Generate AI-powered year-end recap for a player"""
+    if not match_analyzer:
+        raise HTTPException(status_code=503, detail="AI service unavailable - Bedrock not initialized")
     try:
         logger.info(f"Generating year recap for PUUID: {request.puuid[:8]}...")
         recap = await match_analyzer.generate_year_recap(
@@ -148,6 +163,8 @@ async def generate_year_recap(request: MatchAnalysisRequest):
 @app.post("/api/analysis/insights")
 async def generate_insights(request: MatchAnalysisRequest):
     """Generate AI-powered insights about player performance"""
+    if not match_analyzer:
+        raise HTTPException(status_code=503, detail="AI service unavailable - Bedrock not initialized")
     try:
         insights = await match_analyzer.generate_insights(
             request.puuid,
@@ -161,6 +178,8 @@ async def generate_insights(request: MatchAnalysisRequest):
 @app.post("/api/analysis/strengths-weaknesses")
 async def analyze_strengths_weaknesses(request: MatchAnalysisRequest):
     """Analyze persistent strengths and weaknesses"""
+    if not match_analyzer:
+        raise HTTPException(status_code=503, detail="AI service unavailable - Bedrock not initialized")
     try:
         analysis = await match_analyzer.analyze_strengths_weaknesses(
             request.puuid,
@@ -294,6 +313,8 @@ async def agent_chat(request: CoachingChatRequest):
     - Provide personalized coaching advice
     - Create improvement plans
     """
+    if not coaching_agent:
+        raise HTTPException(status_code=503, detail="AI service unavailable - Coaching agent not initialized")
     try:
         logger.info(f"Agent chat request: {request.message}")
         response = await coaching_agent.chat(
@@ -320,6 +341,8 @@ async def agent_quick_analysis(request: QuickCoachingRequest):
     - Compare to target rank
     - Generate improvement plan
     """
+    if not coaching_agent:
+        raise HTTPException(status_code=503, detail="AI service unavailable - Coaching agent not initialized")
     try:
         logger.info(f"Quick analysis for PUUID: {request.puuid[:8]}...")
         response = await coaching_agent.quick_analysis(
