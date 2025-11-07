@@ -7,8 +7,10 @@ import ParticipantDetailsModal from './components/ParticipantDetailsModal';
 import FrameEventsModal from './components/FrameEventsModal';
 import YearRecapPage from './components/YearRecapPage';
 import PerformanceAnalyticsPage from './components/PerformanceAnalyticsPage';
-import matchData from './data/match-data.json';
-import matchSummary from './data/match-summary.json';
+import PlayerSearch from './components/PlayerSearch';
+import MatchSelector from './components/MatchSelector';
+const EMPTY_MATCH_DATA = { info: { frames: [] } };
+const EMPTY_MATCH_SUMMARY = { info: { participants: [] } };
 
 // Configuration
 const API_BASE_URL = 'http://localhost:8000';
@@ -18,24 +20,18 @@ function App() {
   const [currentPage, setCurrentPage] = useState('match');
   
   // Handle hash routing for shared links
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      if (hash.startsWith('#/a/') || hash.startsWith('#/analytics/')) {
-        setCurrentPage('performance-analytics');
-      }
-    };
-    
-    // Check on mount
-    handleHashChange();
-    
-    // Listen for hash changes
-    window.addEventListener('hashchange', handleHashChange);
-    
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-    };
-  }, []);
+  const [showPlayerSearch, setShowPlayerSearch] = useState(false);
+  const [currentPlayerData, setCurrentPlayerData] = useState(null);
+  const [currentPuuid, setCurrentPuuid] = useState(SNEAKY_PUUID);
+  const [currentPlayerName, setCurrentPlayerName] = useState('Sneaky#NA1');
+
+  // Match data state
+  const [matchData, setMatchData] = useState(EMPTY_MATCH_DATA);
+  const [matchSummary, setMatchSummary] = useState(EMPTY_MATCH_SUMMARY);
+  const [currentMatchId, setCurrentMatchId] = useState(null);
+  const [mainParticipantId, setMainParticipantId] = useState(1);
+  const [loadingMatch, setLoadingMatch] = useState(false);
+  const [matchError, setMatchError] = useState(null);
   const [yearRecapData, setYearRecapData] = useState(null);
   const [yearRecapLoading, setYearRecapLoading] = useState(false);
   const [yearRecapError, setYearRecapError] = useState(null);
@@ -54,7 +50,26 @@ function App() {
   const [detailsModalPlayer, setDetailsModalPlayer] = useState(null);
   const [showFrameEvents, setShowFrameEvents] = useState(false);
 
-  const frames = matchData.info.frames;
+  const frames = matchData?.info?.frames ?? [];
+  
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/a/') || hash.startsWith('#/analytics/')) {
+        setCurrentPage('performance-analytics');
+      }
+    };
+    
+    // Check on mount
+    handleHashChange();
+    
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
 
   const participantSummaryById = useMemo(() => {
     const participants = matchSummary?.info?.participants || [];
@@ -64,7 +79,7 @@ function App() {
       }
       return acc;
     }, {});
-  }, []);
+  }, [matchSummary]);
 
   const eventFiltersWithPositions = useMemo(() => {
     const result = {
@@ -75,7 +90,9 @@ function App() {
     };
 
     frames.forEach(frame => {
-      frame.events?.forEach(event => {
+      if (!frame?.events) return;
+
+      frame.events.forEach(event => {
         if (!event.position) return;
 
         if (event.type === 'CHAMPION_KILL') {
@@ -160,6 +177,84 @@ function App() {
     }
   };
 
+  // Handle player found callback from PlayerSearch
+  const handlePlayerFound = (playerData) => {
+    console.log('Player found:', playerData);
+    setCurrentPlayerData(playerData);
+    setCurrentPuuid(playerData.puuid);
+    setCurrentPlayerName(`${playerData.gameName}#${playerData.tagLine}`);
+
+    // Reset year recap data so it fetches for the new player
+    setYearRecapData(null);
+
+    // Reset match data
+    setCurrentMatchId(null);
+    setMatchData(EMPTY_MATCH_DATA);
+    setMatchSummary(EMPTY_MATCH_SUMMARY);
+    setCurrentFrameIndex(0);
+    setIsPlaying(false);
+
+    // Close the search modal
+    setShowPlayerSearch(false);
+
+    // Optionally navigate to a page to show the new player's data
+    // For now, we'll stay on the current page
+  };
+
+  // Handle match selection
+  const handleMatchSelect = async (matchInfo) => {
+    console.log('Match selected:', matchInfo);
+
+    try {
+      setLoadingMatch(true);
+      setMatchError(null);
+      setCurrentMatchId(matchInfo.matchId);
+
+      // Set match summary immediately (from DynamoDB data)
+      setMatchSummary(matchInfo.fullData || EMPTY_MATCH_SUMMARY);
+
+      // Find the participant ID for the current player (Sneaky#NA1)
+      const participantIdForPlayer = matchInfo.fullData?.info?.participants?.find(
+        participant => participant.puuid === currentPuuid
+      )?.participantId;
+      if (participantIdForPlayer) {
+        setMainParticipantId(participantIdForPlayer);
+      }
+
+      // Fetch timeline data from MongoDB
+      const timelineResponse = await fetch(
+        `${API_BASE_URL}/api/player/match/timeline/${matchInfo.matchId}`
+      );
+
+      if (!timelineResponse.ok) {
+        throw new Error('Failed to fetch match timeline');
+      }
+
+      const timelineData = await timelineResponse.json();
+
+      if (timelineData.success) {
+        const timelinePayload = timelineData.timeline?.data || timelineData.timeline || EMPTY_MATCH_DATA;
+        if (!timelinePayload?.info?.frames) {
+          throw new Error('Timeline data missing frames');
+        }
+
+        // Set the timeline data
+        setMatchData(timelinePayload);
+
+        // Reset playback
+        setCurrentFrameIndex(0);
+        setIsPlaying(false);
+      } else {
+        throw new Error('Timeline data not available');
+      }
+    } catch (error) {
+      console.error('Error loading match:', error);
+      setMatchError(error.message);
+    } finally {
+      setLoadingMatch(false);
+    }
+  };
+
   // Fetch year recap data when switching to that page
   const fetchYearRecapData = async () => {
     if (yearRecapData) return; // Already fetched
@@ -174,8 +269,8 @@ function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          puuid: SNEAKY_PUUID,
-          player_name: 'Sneaky#NA1'
+          puuid: currentPuuid,
+          player_name: currentPlayerName
         })
       });
 
@@ -193,48 +288,61 @@ function App() {
     }
   };
 
-  // Fetch year recap data when navigating to that page
+  // Fetch year recap data when navigating to that page or when player changes
   useEffect(() => {
     if (currentPage === 'year-recap') {
       fetchYearRecapData();
     }
-  }, [currentPage]);
+  }, [currentPage, currentPuuid]);
 
   return (
     <div className="h-screen w-screen bg-bg-dark flex flex-col overflow-hidden">
       {/* Navigation Bar */}
-      <div className="bg-gray-900 border-b border-gray-700 px-6 py-3 flex items-center gap-4">
-        <div className="text-xl font-bold text-primary-gold">RIFT Analyzer</div>
-        <div className="flex gap-2">
+      <div className="bg-gray-900 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="text-xl font-bold text-primary-gold">RIFT Analyzer</div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage('match')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                currentPage === 'match'
+                  ? 'bg-primary-gold text-bg-dark'
+                  : 'bg-gray-800 text-white hover:bg-gray-700'
+              }`}
+            >
+              Match Analysis
+            </button>
+            <button
+              onClick={() => setCurrentPage('year-recap')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                currentPage === 'year-recap'
+                  ? 'bg-primary-gold text-bg-dark'
+                  : 'bg-gray-800 text-white hover:bg-gray-700'
+              }`}
+            >
+              Year Recap
+            </button>
+            <button
+              onClick={() => setCurrentPage('performance-analytics')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                currentPage === 'performance-analytics'
+                  ? 'bg-primary-gold text-bg-dark'
+                  : 'bg-gray-800 text-white hover:bg-gray-700'
+              }`}
+            >
+              Performance Analytics
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-gray-300">
+            Current Player: <span className="text-primary-gold font-semibold">{currentPlayerName}</span>
+          </div>
           <button
-            onClick={() => setCurrentPage('match')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              currentPage === 'match'
-                ? 'bg-primary-gold text-bg-dark'
-                : 'bg-gray-800 text-white hover:bg-gray-700'
-            }`}
+            onClick={() => setShowPlayerSearch(true)}
+            className="px-4 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all"
           >
-            Match Analysis
-          </button>
-          <button
-            onClick={() => setCurrentPage('year-recap')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              currentPage === 'year-recap'
-                ? 'bg-primary-gold text-bg-dark'
-                : 'bg-gray-800 text-white hover:bg-gray-700'
-            }`}
-          >
-            Year Recap
-          </button>
-          <button
-            onClick={() => setCurrentPage('performance-analytics')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              currentPage === 'performance-analytics'
-                ? 'bg-primary-gold text-bg-dark'
-                : 'bg-gray-800 text-white hover:bg-gray-700'
-            }`}
-          >
-            Performance Analytics
+            Load Player
           </button>
         </div>
       </div>
@@ -249,13 +357,34 @@ function App() {
         <PerformanceAnalyticsPage />
       ) : (
         <>
+      {/* Match Selector Bar */}
+      <div className="bg-gray-800 border-b border-gray-700 px-6 py-2">
+        <MatchSelector
+          puuid={currentPuuid}
+          onMatchSelect={handleMatchSelect}
+          currentMatchId={currentMatchId}
+        />
+        {loadingMatch && (
+          <div className="text-center text-yellow-500 text-sm mt-2">
+            Loading match data...
+          </div>
+        )}
+        {matchError && (
+          <div className="text-center text-red-500 text-sm mt-2">
+            Error: {matchError}
+          </div>
+        )}
+      </div>
+
       <div className="flex-1 flex overflow-hidden">
-        <LeftSidebar 
+        <LeftSidebar
+          matchSummary={matchSummary}
           playerFilter={playerFilter}
           setPlayerFilter={setPlayerFilter}
           eventToggles={eventToggles}
           setEventToggles={setEventToggles}
           availableEventFilters={eventFiltersWithPositions}
+          currentPuuid={currentPuuid}
         />
         
         <MapArea 
@@ -267,6 +396,7 @@ function App() {
           frames={frames}
           currentFrameIndex={currentFrameIndex}
           participantSummary={participantSummaryById}
+          mainParticipantId={mainParticipantId}
         />
         
         <RightSidebar 
@@ -276,6 +406,7 @@ function App() {
           onPinPlayer={handlePinPlayer}
           onClose={() => setSelectedPlayer(null)}
           participantSummary={participantSummaryById}
+          mainParticipantId={mainParticipantId}
         />
       </div>
       
@@ -301,6 +432,7 @@ function App() {
           allFrames={frames}
           currentFrameIndex={currentFrameIndex}
           participantSummaryMap={participantSummaryById}
+          mainParticipantId={mainParticipantId}
           onClose={() => setDetailsModalPlayer(null)}
         />
       )}
@@ -317,6 +449,22 @@ function App() {
         />
       )}
         </>
+      )}
+
+      {/* Player Search Modal */}
+      {showPlayerSearch && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="relative max-w-2xl w-full mx-4">
+            <button
+              onClick={() => setShowPlayerSearch(false)}
+              className="absolute -top-4 -right-4 bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-red-700 transition-all z-10"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+            <PlayerSearch onPlayerFound={handlePlayerFound} />
+          </div>
+        </div>
       )}
     </div>
   );

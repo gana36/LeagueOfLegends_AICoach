@@ -1,17 +1,19 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { MONSTER_ICONS } from '../constants/monsterIcons';
+import { getChampionImageUrl } from '../utils/championImages';
 
 const CHAMPION_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/12.4.1/img/champion';
 
-const MapArea = ({ 
-  currentFrame, 
-  playerFilter, 
-  eventToggles, 
+const MapArea = ({
+  currentFrame,
+  playerFilter,
+  eventToggles,
   selectedPlayer,
   onPlayerClick,
   frames,
   currentFrameIndex,
-  participantSummary = {}
+  participantSummary = {},
+  mainParticipantId = 1
 }) => {
   const [mapDimensions, setMapDimensions] = useState({ width: 0, height: 0 });
   const [mapAspect, setMapAspect] = useState(1);
@@ -129,7 +131,7 @@ const MapArea = ({
   // Filter players based on selection
   const getFilteredPlayers = () => {
     if (playerFilter === 'solo') {
-      return participantFrames.filter(p => p.participantId === 1);
+      return participantFrames.filter(p => p.participantId === mainParticipantId);
     } else if (playerFilter === 'team') {
       return participantFrames.filter(p => p.participantId <= 5);
     } else if (playerFilter === 'opponents') {
@@ -279,7 +281,7 @@ const MapArea = ({
     const events = [];
     for (let i = 0; i <= currentFrameIndex; i++) {
       const frame = frames[i];
-      if (!frame.events) continue;
+      if (!frame?.events) continue;
 
       frame.events.forEach(event => {
         if (!event.position) return;
@@ -305,7 +307,7 @@ const MapArea = ({
   };
   const getParticipantImage = (participantId) => {
     const summary = getParticipantSummary(participantId);
-    return summary.championName ? `${CHAMPION_IMAGE_BASE}/${summary.championName}.png` : null;
+    return summary.championName ? getChampionImageUrl(summary.championName) : null;
   };
 
   const getEventDescription = useCallback((event) => {
@@ -494,7 +496,7 @@ const MapArea = ({
               mapDimensions.height,
             );
             
-            const isMainPlayer = player.participantId === 1;
+            const isMainPlayer = player.participantId === mainParticipantId;
             const isTeammate = player.participantId <= 5;
             const isSelected = selectedPlayer === player.participantId;
             const championName = getParticipantName(player.participantId);
@@ -746,7 +748,7 @@ const MapArea = ({
 const ParticipantBadge = ({ participantId, label, accent = '', compact = false, participantSummary = {} }) => {
   const summary = participantSummary?.[participantId] || {};
   const championName = summary.championName || `Player ${participantId}`;
-  const championImage = summary.championName ? `${CHAMPION_IMAGE_BASE}/${summary.championName}.png` : null;
+  const championImage = summary.championName ? getChampionImageUrl(summary.championName) : null;
   const sizeClasses = compact ? 'w-7 h-7' : 'w-9 h-9';
 
   return (
