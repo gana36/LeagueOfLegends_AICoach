@@ -7,7 +7,9 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
 import sys
+import os
 from pathlib import Path
+from pymongo import MongoClient
 
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -15,6 +17,22 @@ sys.path.append(str(Path(__file__).parent.parent))
 from services.player_data_service import PlayerDataService
 
 router = APIRouter(prefix="/api/player", tags=["player"])
+
+# Initialize MongoDB client once (reuse connection)
+_mongo_client = None
+
+def get_mongo_client():
+    """Get or create MongoDB client singleton"""
+    global _mongo_client
+    if _mongo_client is None:
+        connection_string = os.getenv('MONGODB_CONNECTION_STRING')
+        _mongo_client = MongoClient(
+            connection_string,
+            serverSelectionTimeoutMS=5000,  # 5 second timeout
+            connectTimeoutMS=5000,
+            socketTimeoutMS=5000
+        )
+    return _mongo_client
 
 # Request/Response models
 class PlayerRequest(BaseModel):
@@ -153,29 +171,42 @@ async def get_match_timeline(match_id: str):
         Match timeline data
     """
     try:
-        from pymongo import MongoClient
-        import os
+        import logging
 
-        mongo_client = MongoClient(os.getenv('MONGODB_CONNECTION_STRING'))
+        logger = logging.getLogger(__name__)
+        logger.info(f"Fetching timeline for match: {match_id}")
+
+        # Use the shared MongoDB client
+        mongo_client = get_mongo_client()
         mongo_db = mongo_client['lol_timelines']
 
-        timeline = mongo_db.timelines.find_one(
+        timeline_doc = mongo_db.timelines.find_one(
             {'matchId': match_id},
             {'_id': 0}  # Exclude MongoDB's _id field
         )
 
-        if not timeline:
+        if not timeline_doc:
+            logger.warning(f"Timeline not found for match: {match_id}")
             raise HTTPException(status_code=404, detail="Timeline not found")
+
+        logger.info(f"Timeline document keys: {timeline_doc.keys()}")
+
+        # Extract the actual timeline data (nested inside 'data' field)
+        # The 'data' field contains the full timeline from Riot API
+        timeline_data = timeline_doc.get('data', {})
+
+        logger.info(f"Timeline data extracted, has info: {'info' in timeline_data}")
 
         return {
             'success': True,
             'matchId': match_id,
-            'timeline': timeline
+            'timeline': timeline_data  # Return the timeline data directly
         }
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Error fetching timeline: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

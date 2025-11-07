@@ -15,23 +15,38 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId }) => {
   }, [puuid]);
 
   const fetchMatches = async () => {
+    if (!puuid) {
+      console.warn('No PUUID provided to MatchSelector');
+      setError('No player selected');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');
 
-      const response = await fetch(`http://localhost:8000/api/player/matches/${puuid}`);
+      console.log('Fetching matches for PUUID:', puuid);
+      const url = `http://localhost:8000/api/player/matches/${puuid}`;
+      console.log('Fetching from:', url);
+
+      const response = await fetch(url);
 
       if (!response.ok) {
-        throw new Error('Failed to fetch matches');
+        const errorText = await response.text();
+        console.error('Response not OK:', response.status, errorText);
+        throw new Error(`Failed to fetch matches: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('Matches fetched:', data);
 
       if (data.success) {
         setMatches(data.matches);
 
         // Auto-select first match if none selected
         if (data.matches.length > 0 && !currentMatchId) {
+          console.log('Auto-selecting first match:', data.matches[0].matchId);
           onMatchSelect(data.matches[0]);
         }
       } else {
@@ -39,7 +54,7 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId }) => {
       }
     } catch (err) {
       console.error('Error fetching matches:', err);
-      setError(err.message);
+      setError(`Failed to load matches: ${err.message}`);
     } finally {
       setLoading(false);
     }

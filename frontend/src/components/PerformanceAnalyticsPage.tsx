@@ -8,7 +8,14 @@ import { ObjectivePanel } from './dashboard/ObjectivePanel';
 import { VisionPanel } from './dashboard/VisionPanel';
 import { ItemRuneSection } from './dashboard/ItemRuneSection';
 
-function PerformanceAnalyticsPage() {
+const API_BASE_URL = 'http://localhost:8000';
+
+interface PerformanceAnalyticsPageProps {
+  puuid?: string;
+  playerName?: string;
+}
+
+function PerformanceAnalyticsPage({ puuid, playerName }: PerformanceAnalyticsPageProps) {
   const [filters, setFilters] = useState({
     region: 'NA',
     champion: 'All',
@@ -18,8 +25,78 @@ function PerformanceAnalyticsPage() {
   });
 
   const [comparisonMode, setComparisonMode] = useState(false);
-  const [playerA, setPlayerA] = useState('Summoner Performance');
+  const [playerA, setPlayerA] = useState(playerName || 'Summoner Performance');
   const [playerB, setPlayerB] = useState('Rival Player');
+
+  // Analytics data state
+  const [visionData, setVisionData] = useState(null);
+  const [objectiveData, setObjectiveData] = useState(null);
+  const [itemRuneData, setItemRuneData] = useState(null);
+  const [trendsData, setTrendsData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch analytics data
+  useEffect(() => {
+    if (puuid) {
+      fetchAnalyticsData();
+    }
+  }, [puuid]);
+
+  const fetchAnalyticsData = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch all analytics in a single call
+      const response = await fetch(`${API_BASE_URL}/api/analytics/performance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ puuid })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch analytics: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Extract each section from the unified response
+      setVisionData({
+        success: data.success,
+        matchCount: data.matchCount,
+        averages: data.vision.averages,
+        totals: data.vision.totals
+      });
+
+      setObjectiveData({
+        success: data.success,
+        matchCount: data.matchCount,
+        averages: data.objectives.averages,
+        participation: data.objectives.participation,
+        totals: data.objectives.totals
+      });
+
+      setItemRuneData({
+        success: data.success,
+        matchCount: data.matchCount,
+        topItems: data.items.topItems,
+        topRunes: data.runes.topRunes
+      });
+
+      setTrendsData({
+        success: data.success,
+        matchCount: data.matchCount,
+        matches: data.trends.matches
+      });
+
+    } catch (err) {
+      console.error('Error fetching analytics:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
   const pageContentRef = useRef<HTMLDivElement>(null);
 
   // Read URL hash on mount to restore shared view
@@ -156,7 +233,7 @@ function PerformanceAnalyticsPage() {
 
           <KPICards comparisonMode={comparisonMode} />
 
-          <TrendCharts comparisonMode={comparisonMode} />
+          <TrendCharts comparisonMode={comparisonMode} data={trendsData} loading={loading} />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
@@ -168,9 +245,21 @@ function PerformanceAnalyticsPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <ObjectivePanel comparisonMode={comparisonMode} />
-            <VisionPanel comparisonMode={comparisonMode} />
-            <ItemRuneSection comparisonMode={comparisonMode} />
+            <ObjectivePanel
+              comparisonMode={comparisonMode}
+              data={objectiveData}
+              loading={loading}
+            />
+            <VisionPanel
+              comparisonMode={comparisonMode}
+              data={visionData}
+              loading={loading}
+            />
+            <ItemRuneSection
+              comparisonMode={comparisonMode}
+              data={itemRuneData}
+              loading={loading}
+            />
           </div>
         </div>
       </div>
