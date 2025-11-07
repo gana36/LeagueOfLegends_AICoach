@@ -18,6 +18,7 @@ from services.demo_data import (
     DEMO_STRENGTHS_WEAKNESSES
 )
 from api.player_api import router as player_router
+from api.analytics_api import router as analytics_router
 
 # Configure logging
 logging.basicConfig(
@@ -41,6 +42,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(player_router)
+app.include_router(analytics_router)
 
 # Initialize services
 riot_client = RiotAPIClient(api_key=os.getenv("RIOT_API_KEY"))

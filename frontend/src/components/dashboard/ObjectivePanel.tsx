@@ -27,9 +27,34 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 interface ObjectivePanelProps {
   comparisonMode: boolean;
+  data?: any;
+  loading?: boolean;
 }
 
-export function ObjectivePanel({ comparisonMode }: ObjectivePanelProps) {
+export function ObjectivePanel({ comparisonMode, data, loading }: ObjectivePanelProps) {
+  // Use real data if available
+  const objectiveData = data ? [
+    { name: 'Dragons', playerA: data.averages?.dragons || 0, playerB: 2.8, icon: Flame, color: '#ef4444' },
+    { name: 'Barons', playerA: data.averages?.barons || 0, playerB: 0.6, icon: Crown, color: '#8b5cf6' },
+    { name: 'Heralds', playerA: data.averages?.heralds || 0, playerB: 0.7, icon: Axe, color: '#f59e0b' },
+    { name: 'First Blood', playerA: (data.averages?.firstBloodRate || 0) / 100, playerB: 0.28, icon: Droplet, color: '#dc2626' },
+    { name: 'First Tower', playerA: (data.averages?.firstTowerRate || 0) / 100, playerB: 0.38, icon: Castle, color: '#64748b' }
+  ] : [
+    { name: 'Dragons', playerA: 3.2, playerB: 2.8, icon: Flame, color: '#ef4444' },
+    { name: 'Barons', playerA: 0.8, playerB: 0.6, icon: Crown, color: '#8b5cf6' },
+    { name: 'Heralds', playerA: 0.6, playerB: 0.7, icon: Axe, color: '#f59e0b' },
+    { name: 'First Blood', playerA: 0.35, playerB: 0.28, icon: Droplet, color: '#dc2626' },
+    { name: 'First Tower', playerA: 0.42, playerB: 0.38, icon: Castle, color: '#64748b' }
+  ];
+
+  if (loading) {
+    return (
+      <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-purple-500/20 shadow-lg shadow-purple-500/5">
+        <h2 className="text-xl text-purple-400 mb-6">Objective Control</h2>
+        <div className="text-center text-slate-400 py-8">Loading objective data...</div>
+      </div>
+    );
+  }
   return (
     <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-purple-500/20 shadow-lg shadow-purple-500/5">
       <h2 className="text-xl text-purple-400 mb-6">Objective Control</h2>

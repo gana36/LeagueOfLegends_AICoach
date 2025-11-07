@@ -354,7 +354,7 @@ function App() {
           error={yearRecapError}
         />
       ) : currentPage === 'performance-analytics' ? (
-        <PerformanceAnalyticsPage />
+        <PerformanceAnalyticsPage puuid={currentPuuid} playerName={currentPlayerName} />
       ) : (
         <>
       {/* Match Selector Bar */}

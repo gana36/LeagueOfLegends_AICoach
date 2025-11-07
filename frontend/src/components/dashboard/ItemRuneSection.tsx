@@ -17,9 +17,44 @@ const runes = [
 
 interface ItemRuneSectionProps {
   comparisonMode: boolean;
+  data?: any;
+  loading?: boolean;
 }
 
-export function ItemRuneSection({ comparisonMode }: ItemRuneSectionProps) {
+export function ItemRuneSection({ comparisonMode, data, loading }: ItemRuneSectionProps) {
+  // Use real data if available
+  const items = data?.topItems ? data.topItems.slice(0, 4).map((item: any) => ({
+    name: `Item ${item.itemId}`,
+    usage: item.pickRate,
+    icon: '⚔️',
+    color: 'red'
+  })) : [
+    { name: 'Infinity Edge', usage: 78, icon: '⚔️', color: 'red' },
+    { name: 'Phantom Dancer', usage: 65, icon: '👻', color: 'purple' },
+    { name: 'Bloodthirster', usage: 58, icon: '🩸', color: 'red' },
+    { name: 'Guardian Angel', usage: 52, icon: '🛡️', color: 'amber' }
+  ];
+
+  const runes = data?.topRunes ? data.topRunes.slice(0, 4).map((rune: any) => ({
+    name: `Rune ${rune.runeId}`,
+    usage: rune.pickRate,
+    icon: Swords,
+    color: 'red'
+  })) : [
+    { name: 'Conqueror', usage: 72, icon: Swords, color: 'red' },
+    { name: 'Triumph', usage: 68, icon: Heart, color: 'green' },
+    { name: 'Alacrity', usage: 64, icon: Zap, color: 'amber' },
+    { name: 'Last Stand', usage: 60, icon: Shield, color: 'cyan' }
+  ];
+
+  if (loading) {
+    return (
+      <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-amber-500/20 shadow-lg shadow-amber-500/5">
+        <h2 className="text-xl text-amber-400 mb-6">Most Used Items & Runes</h2>
+        <div className="text-center text-slate-400 py-8">Loading items & runes...</div>
+      </div>
+    );
+  }
   return (
     <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-amber-500/20 shadow-lg shadow-amber-500/5">
       <h2 className="text-xl text-amber-400 mb-6">
