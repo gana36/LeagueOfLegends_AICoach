@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MONSTER_ICONS } from '../constants/monsterIcons';
+import { getChampionImageUrl } from '../utils/championImages';
 
 const CHAMPION_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/12.4.1/img/champion';
 const ITEM_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/15.21.1/img/item';
@@ -16,7 +17,7 @@ const SUMMONER_SPELLS = {
   summonerboost: { key: 'SummonerBoost', label: 'Cleanse' }
 };
 
-const ParticipantDetailsModal = ({ participant, participantId, onClose, currentFrame, allFrames, currentFrameIndex, participantSummaryMap = {} }) => {
+const ParticipantDetailsModal = ({ participant, participantId, onClose, currentFrame, allFrames, currentFrameIndex, participantSummaryMap = {}, mainParticipantId = 1 }) => {
   const [activeTab, setActiveTab] = useState('overview');
 
   if (!participant || !currentFrame) return null;
@@ -217,14 +218,14 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
   const allEvents = getAllParticipantEvents();
 
   const isTeammate = participantId <= 5;
-  const borderColor = participantId === 1 ? 'border-primary-gold' : isTeammate ? 'border-team-blue' : 'border-enemy-red';
+  const borderColor = participantId === mainParticipantId ? 'border-primary-gold' : isTeammate ? 'border-team-blue' : 'border-enemy-red';
   const teamAccent = isTeammate ? 'text-team-blue' : 'text-enemy-red';
   const teamLabel = isTeammate ? 'Blue Team' : 'Red Team';
 
   const participantSummary = participantSummaryMap?.[participantId] || {};
   const championName = participantSummary.championName || `Player ${participantId}`;
   const championImage = participantSummary.championName && participantSummary.championName !== ''
-    ? `${CHAMPION_IMAGE_BASE}/${participantSummary.championName}.png`
+    ? getChampionImageUrl(participantSummary.championName)
     : null;
   const summonerName = participantSummary.summonerName || `Player ${participantId}`;
   const role = participantSummary.teamPosition || participantSummary.individualPosition || participantSummary.lane || 'Unknown Role';
@@ -553,7 +554,7 @@ const ParticipantDetailsModal = ({ participant, participantId, onClose, currentF
                 ) : (
                   <div 
                     className="w-full h-full flex items-center justify-center text-3xl font-bold text-white"
-                    style={{ backgroundColor: participantId === 1 ? '#FFD700' : isTeammate ? '#00D9FF' : '#FF4655' }}
+                    style={{ backgroundColor: participantId === mainParticipantId ? '#FFD700' : isTeammate ? '#00D9FF' : '#FF4655' }}
                   >
                     P{participantId}
                   </div>

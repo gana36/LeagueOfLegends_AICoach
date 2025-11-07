@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getChampionImageUrl } from '../utils/championImages';
 import './MatchSelector.css';
 
 const MatchSelector = ({ puuid, onMatchSelect, currentMatchId }) => {
@@ -109,7 +110,7 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId }) => {
                 >
                   <div className="match-champion">
                     <img
-                      src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/${match.championName}.png`}
+                      src={getChampionImageUrl(match.championName)}
                       alt={match.championName}
                       className="champion-icon"
                       onError={(e) => { e.target.style.display = 'none'; }}

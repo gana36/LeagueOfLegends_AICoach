@@ -9,8 +9,8 @@ import YearRecapPage from './components/YearRecapPage';
 import PerformanceAnalyticsPage from './components/PerformanceAnalyticsPage';
 import PlayerSearch from './components/PlayerSearch';
 import MatchSelector from './components/MatchSelector';
-import defaultMatchData from './data/match-data.json';
-import defaultMatchSummary from './data/match-summary.json';
+const EMPTY_MATCH_DATA = { info: { frames: [] } };
+const EMPTY_MATCH_SUMMARY = { info: { participants: [] } };
 
 // Configuration
 const API_BASE_URL = 'http://localhost:8000';
@@ -24,9 +24,10 @@ function App() {
   const [currentPlayerName, setCurrentPlayerName] = useState('Sneaky#NA1');
 
   // Match data state
-  const [matchData, setMatchData] = useState(defaultMatchData);
-  const [matchSummary, setMatchSummary] = useState(defaultMatchSummary);
+  const [matchData, setMatchData] = useState(EMPTY_MATCH_DATA);
+  const [matchSummary, setMatchSummary] = useState(EMPTY_MATCH_SUMMARY);
   const [currentMatchId, setCurrentMatchId] = useState(null);
+  const [mainParticipantId, setMainParticipantId] = useState(1);
   const [loadingMatch, setLoadingMatch] = useState(false);
   const [matchError, setMatchError] = useState(null);
   const [yearRecapData, setYearRecapData] = useState(null);
@@ -47,7 +48,7 @@ function App() {
   const [detailsModalPlayer, setDetailsModalPlayer] = useState(null);
   const [showFrameEvents, setShowFrameEvents] = useState(false);
 
-  const frames = matchData.info.frames;
+  const frames = matchData?.info?.frames ?? [];
 
   const participantSummaryById = useMemo(() => {
     const participants = matchSummary?.info?.participants || [];
@@ -57,7 +58,7 @@ function App() {
       }
       return acc;
     }, {});
-  }, []);
+  }, [matchSummary]);
 
   const eventFiltersWithPositions = useMemo(() => {
     const result = {
@@ -68,7 +69,9 @@ function App() {
     };
 
     frames.forEach(frame => {
-      frame.events?.forEach(event => {
+      if (!frame?.events) return;
+
+      frame.events.forEach(event => {
         if (!event.position) return;
 
         if (event.type === 'CHAMPION_KILL') {
@@ -165,8 +168,10 @@ function App() {
 
     // Reset match data
     setCurrentMatchId(null);
-    setMatchData(defaultMatchData);
-    setMatchSummary(defaultMatchSummary);
+    setMatchData(EMPTY_MATCH_DATA);
+    setMatchSummary(EMPTY_MATCH_SUMMARY);
+    setCurrentFrameIndex(0);
+    setIsPlaying(false);
 
     // Close the search modal
     setShowPlayerSearch(false);
@@ -185,7 +190,15 @@ function App() {
       setCurrentMatchId(matchInfo.matchId);
 
       // Set match summary immediately (from DynamoDB data)
-      setMatchSummary(matchInfo.fullData);
+      setMatchSummary(matchInfo.fullData || EMPTY_MATCH_SUMMARY);
+
+      // Find the participant ID for the current player (Sneaky#NA1)
+      const participantIdForPlayer = matchInfo.fullData?.info?.participants?.find(
+        participant => participant.puuid === currentPuuid
+      )?.participantId;
+      if (participantIdForPlayer) {
+        setMainParticipantId(participantIdForPlayer);
+      }
 
       // Fetch timeline data from MongoDB
       const timelineResponse = await fetch(
@@ -199,8 +212,13 @@ function App() {
       const timelineData = await timelineResponse.json();
 
       if (timelineData.success) {
+        const timelinePayload = timelineData.timeline?.data || timelineData.timeline || EMPTY_MATCH_DATA;
+        if (!timelinePayload?.info?.frames) {
+          throw new Error('Timeline data missing frames');
+        }
+
         // Set the timeline data
-        setMatchData(timelineData.timeline.data);
+        setMatchData(timelinePayload);
 
         // Reset playback
         setCurrentFrameIndex(0);
@@ -339,11 +357,13 @@ function App() {
 
       <div className="flex-1 flex overflow-hidden">
         <LeftSidebar
+          matchSummary={matchSummary}
           playerFilter={playerFilter}
           setPlayerFilter={setPlayerFilter}
           eventToggles={eventToggles}
           setEventToggles={setEventToggles}
           availableEventFilters={eventFiltersWithPositions}
+          currentPuuid={currentPuuid}
         />
         
         <MapArea 
@@ -355,6 +375,7 @@ function App() {
           frames={frames}
           currentFrameIndex={currentFrameIndex}
           participantSummary={participantSummaryById}
+          mainParticipantId={mainParticipantId}
         />
         
         <RightSidebar 
@@ -364,6 +385,7 @@ function App() {
           onPinPlayer={handlePinPlayer}
           onClose={() => setSelectedPlayer(null)}
           participantSummary={participantSummaryById}
+          mainParticipantId={mainParticipantId}
         />
       </div>
       
@@ -389,6 +411,7 @@ function App() {
           allFrames={frames}
           currentFrameIndex={currentFrameIndex}
           participantSummaryMap={participantSummaryById}
+          mainParticipantId={mainParticipantId}
           onClose={() => setDetailsModalPlayer(null)}
         />
       )}

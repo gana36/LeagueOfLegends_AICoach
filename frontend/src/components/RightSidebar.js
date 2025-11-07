@@ -1,8 +1,51 @@
 import React from 'react';
+import { getChampionImageUrl } from '../utils/championImages';
 
 const CHAMPION_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/12.4.1/img/champion';
 
-const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer, onClose, participantSummary = {} }) => {
+const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer, onClose, participantSummary = {}, mainParticipantId = 1 }) => {
+  const [isChatOpen, setIsChatOpen] = React.useState(false);
+  const [chatInput, setChatInput] = React.useState('');
+  const [chatMessages, setChatMessages] = React.useState([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      author: 'Rift Copilot',
+      timestamp: 'Just now',
+      content: 'Ping me when you need quick analysis or a next-step suggestion.'
+    }
+  ]);
+  const chatScrollRef = React.useRef(null);
+  const chatInputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, isChatOpen]);
+
+  React.useEffect(() => {
+    if (isChatOpen && chatInputRef.current) {
+      chatInputRef.current.focus();
+    }
+  }, [isChatOpen]);
+
+  const hasUserMessages = React.useMemo(
+    () => chatMessages.some(message => message.role === 'user'),
+    [chatMessages]
+  );
+  const showWelcome = !hasUserMessages && chatMessages.length <= 1;
+  const suggestedTasks = React.useMemo(
+    () => (
+      [
+        { id: 'sidebar-ui', label: 'Right Sidebar UI Refinement', eta: '2m' },
+        { id: 'agentic-chat', label: 'Agentic Match Analysis Chat', eta: '48m' },
+        { id: 'live-insights', label: 'Integrate Live AI Insights', eta: '4h' }
+      ]
+    ),
+    []
+  );
+
   if (!currentFrame || !currentFrame.participantFrames) {
     return <div className="w-[320px] bg-surface h-full" />;
   }
@@ -46,7 +89,7 @@ const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer
     const manaPercent = stats.powerMax > 0 ? (stats.power / stats.powerMax) * 100 : 100;
     const summary = participantSummary[participantId] || {};
     const championName = summary.championName;
-    const championImageUrl = championName ? `${CHAMPION_IMAGE_BASE}/${championName}.png` : null;
+    const championImageUrl = championName ? getChampionImageUrl(championName) : null;
     const summonerName = summary.summonerName || `Player ${participantId}`;
     const kda = `${summary.kills ?? player.kills ?? 0}/${summary.deaths ?? player.deaths ?? 0}/${summary.assists ?? player.assists ?? 0}`;
     const teamName = participantId <= 5 ? 'Blue Team' : 'Red Team';
@@ -180,8 +223,27 @@ const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer
     );
   };
 
+  const handleSendChatMessage = (event) => {
+    event.preventDefault();
+    const trimmedMessage = chatInput.trim();
+    if (!trimmedMessage) return;
+
+    const now = new Date();
+    setChatMessages(prev => ([
+      ...prev,
+      {
+        id: `${now.getTime()}`,
+        role: 'user',
+        author: 'You',
+        timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        content: trimmedMessage
+      }
+    ]));
+    setChatInput('');
+  };
+
   return (
-    <div className="w-[320px] bg-surface h-full overflow-y-auto">
+    <div className="relative w-[320px] bg-surface h-full overflow-y-auto" style={{ overflowY: isChatOpen ? 'hidden' : 'auto' }}>
       {/* Frame Summary */}
       <div className="p-4 border-b border-gray-700">
         <div className="text-center mb-4">
@@ -249,9 +311,128 @@ const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer
 
         {/* Default: Show main player if nothing selected */}
         {!selectedPlayer && pinnedPlayers.length === 0 && (
-          <PlayerStatsCard participantId={1} isPinned={false} />
+          <PlayerStatsCard participantId={mainParticipantId} isPinned={false} />
         )}
       </div>
+
+      {/* Floating Chat Button */}
+      <button
+        type="button"
+        onClick={() => setIsChatOpen(true)}
+        className={`fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-20 flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-primary-gold text-bg-dark shadow-lg transition-transform hover:scale-105 ${isChatOpen ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+        aria-label="Open Rift Copilot chat"
+      >
+        💬
+      </button>
+
+      {isChatOpen && (
+        <div className="absolute inset-0 z-30 bg-[#0d0d0d]/98 backdrop-blur-2xl flex flex-col">
+            {/* Top bar */}
+            <div className="px-4 py-3.5 border-b border-white/[0.08] flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-gold/20 to-primary-gold/5 border border-primary-gold/25 flex items-center justify-center">
+                  <span className="text-xs font-bold text-primary-gold">RC</span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Rift Copilot</p>
+                  <p className="text-[11px] text-white/40">AI match insights</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsChatOpen(false)}
+                className="w-7 h-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-white/50 hover:text-white/80 transition-all flex items-center justify-center"
+                aria-label="Close chat"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="stroke-current">
+                  <path d="M1 1L11 11M11 1L1 11" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 flex flex-col">
+              {showWelcome ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center gap-5 px-5 py-6">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary-gold/15 to-primary-gold/5 border border-primary-gold/25 flex items-center justify-center">
+                      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                        <path d="M14 3L17 10L24 14L17 18L14 25L11 18L4 14L11 10L14 3Z" fill="currentColor" className="text-primary-gold/60"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-base font-semibold text-white mb-1">Rift Copilot</p>
+                      <p className="text-xs text-white/40 max-w-[240px]">Ask anything about the match. Get instant insights.</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                  {chatMessages.map(message => (
+                    <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[90%] rounded-xl px-3.5 py-2.5 ${
+                        message.role === 'user'
+                          ? 'bg-primary-gold/10 border border-primary-gold/20 text-white'
+                          : 'bg-white/[0.04] border border-white/[0.08] text-white/90'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className={`text-[11px] font-medium ${message.role === 'user' ? 'text-white' : 'text-primary-gold'}`}>{message.author}</span>
+                          <span className="text-[10px] text-white/30">{message.timestamp}</span>
+                        </div>
+                        <p className="text-[13px] leading-relaxed">{message.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="px-4 pb-3">
+                <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2.5">
+                  <p className="text-[10px] uppercase tracking-wider text-white/30 mb-2 font-medium">Suggested</p>
+                  <div className="space-y-1">
+                    {suggestedTasks.map(task => (
+                      <button
+                        key={task.id}
+                        type="button"
+                        onClick={() => {
+                          setChatInput(task.label);
+                          if (chatInputRef.current) chatInputRef.current.focus();
+                        }}
+                        className="w-full flex items-center justify-between rounded-md bg-white/[0.02] hover:bg-white/[0.06] px-2.5 py-2 text-xs text-white/70 hover:text-white/90 transition-all group"
+                      >
+                        <span className="truncate">{task.label}</span>
+                        <span className="text-[10px] text-white/30 group-hover:text-white/40">{task.eta}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Input */}
+            <form onSubmit={handleSendChatMessage} className="px-4 pb-4">
+              <div className="flex items-center gap-2.5 rounded-lg border border-white/[0.1] bg-white/[0.03] px-3 py-2.5 focus-within:border-white/[0.2] transition-colors">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={event => setChatInput(event.target.value)}
+                  placeholder="Ask Rift Copilot..."
+                  ref={chatInputRef}
+                  className="flex-1 bg-transparent text-[13px] text-white placeholder:text-white/30 focus:outline-none caret-primary-gold"
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim()}
+                  className="flex items-center justify-center w-7 h-7 rounded-md bg-primary-gold/90 hover:bg-primary-gold text-bg-dark transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-current">
+                    <path d="M2 7H12M12 7L8 3M12 7L8 11" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            </form>
+        </div>
+      )}
     </div>
   );
 };
