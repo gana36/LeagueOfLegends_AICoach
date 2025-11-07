@@ -49,14 +49,14 @@ export function ObjectivePanel({ comparisonMode, data, loading }: ObjectivePanel
 
   if (loading) {
     return (
-      <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-purple-500/20 shadow-lg shadow-purple-500/5">
+      <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-purple-500/30 shadow-lg shadow-purple-500/5">
         <h2 className="text-xl text-purple-400 mb-6">Objective Control</h2>
         <div className="text-center text-slate-400 py-8">Loading objective data...</div>
       </div>
     );
   }
   return (
-    <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-purple-500/20 shadow-lg shadow-purple-500/5">
+    <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl p-6 border border-purple-500/30 shadow-lg shadow-purple-500/5">
       <h2 className="text-xl text-purple-400 mb-6">Objective Control</h2>
       
       {!comparisonMode && (
@@ -101,62 +101,6 @@ export function ObjectivePanel({ comparisonMode, data, loading }: ObjectivePanel
           )}
         </BarChart>
       </ResponsiveContainer>
-
-      {/* Additional Stats */}
-      <div className="mt-6 grid grid-cols-2 gap-3">
-        <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 rounded-lg p-4 border border-purple-500/20">
-          <div className="flex items-center gap-2 mb-2">
-            <Castle className="w-4 h-4 text-purple-400" />
-            <span className="text-xs text-slate-400">Structures</span>
-          </div>
-          {comparisonMode ? (
-            <div className="flex items-center justify-between">
-              <span className="text-lg text-cyan-400">8.2</span>
-              <span className="text-xs text-slate-500">vs</span>
-              <span className="text-lg text-fuchsia-400">7.5</span>
-            </div>
-          ) : (
-            <>
-              <p className="text-2xl text-white">8.2</p>
-              <p className="text-xs text-slate-500 mt-1">Avg per game</p>
-            </>
-          )}
-        </div>
-
-        <div className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 rounded-lg p-4 border border-amber-500/20">
-          <div className="flex items-center gap-2 mb-2">
-            <Axe className="w-4 h-4 text-amber-400" />
-            <span className="text-xs text-slate-400">Participation</span>
-          </div>
-          {comparisonMode ? (
-            <div className="flex items-center justify-between">
-              <span className="text-lg text-cyan-400">78%</span>
-              <span className="text-xs text-slate-500">vs</span>
-              <span className="text-lg text-fuchsia-400">72%</span>
-            </div>
-          ) : (
-            <>
-              <p className="text-2xl text-white">78%</p>
-              <p className="text-xs text-slate-500 mt-1">Team objectives</p>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-3 p-3 bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-lg border border-purple-500/10">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-slate-400">Epic Monster Priority</span>
-          {comparisonMode ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-cyan-400">High</span>
-              <span className="text-xs text-slate-600">/</span>
-              <span className="text-sm text-fuchsia-400">Medium</span>
-            </div>
-          ) : (
-            <span className="text-sm text-purple-400">High</span>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

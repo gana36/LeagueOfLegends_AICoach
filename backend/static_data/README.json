@@ -1,0 +1,95 @@
+{
+  "fetch_date": "2025-11-03T12:53:27.241271",
+  "player": "Sneaky#NA1",
+  "puuid": "BQD2G_OKDrt_YjF9A5qJvfzClUx0Fe2fPzQm8cqLQWnATfQmzBta-JAW3ZOGABb07RmYrpJ_AXr-cg",
+  "structure": {
+    "account/": "Account information (Riot ID, PUUID)",
+    "summoner/": "Summoner information (level, profile icon)",
+    "matches/": "Match history and individual match details",
+    "champion_mastery/": "Champion mastery data",
+    "ranked/": "Ranked/League information (using PUUID)",
+    "challenges/": "Player challenges (player_challenges.json) + All challenge definitions (challenge_config.json)"
+  },
+  "files_created": [
+    {
+      "path": "README.json",
+      "size_kb": 1.95
+    },
+    {
+      "path": "account\\account.json",
+      "size_kb": 0.14
+    },
+    {
+      "path": "challenges\\challenges.json",
+      "size_kb": 33.94
+    },
+    {
+      "path": "challenges\\challenge_config.json",
+      "size_kb": 3858.7
+    },
+    {
+      "path": "challenges\\player_challenges.json",
+      "size_kb": 33.94
+    },
+    {
+      "path": "champion_mastery\\champion_mastery.json",
+      "size_kb": 28.12
+    },
+    {
+      "path": "matches\\match_10_NA1_5078290450.json",
+      "size_kb": 114.45
+    },
+    {
+      "path": "matches\\match_1_NA1_5080320781.json",
+      "size_kb": 115.58
+    },
+    {
+      "path": "matches\\match_2_NA1_5080261549.json",
+      "size_kb": 115.3
+    },
+    {
+      "path": "matches\\match_3_NA1_5080224382.json",
+      "size_kb": 113.25
+    },
+    {
+      "path": "matches\\match_4_NA1_5080196740.json",
+      "size_kb": 112.47
+    },
+    {
+      "path": "matches\\match_5_NA1_5080155988.json",
+      "size_kb": 112.23
+    },
+    {
+      "path": "matches\\match_6_NA1_5079266286.json",
+      "size_kb": 115.8
+    },
+    {
+      "path": "matches\\match_7_NA1_5079213081.json",
+      "size_kb": 113.7
+    },
+    {
+      "path": "matches\\match_8_NA1_5079138870.json",
+      "size_kb": 114.87
+    },
+    {
+      "path": "matches\\match_9_NA1_5079119428.json",
+      "size_kb": 107.6
+    },
+    {
+      "path": "matches\\match_ids.json",
+      "size_kb": 0.49
+    },
+    {
+      "path": "ranked\\error.json",
+      "size_kb": 0.03
+    },
+    {
+      "path": "ranked\\ranked.json",
+      "size_kb": 0.0
+    },
+    {
+      "path": "summoner\\summoner.json",
+      "size_kb": 0.18
+    }
+  ]
+}
