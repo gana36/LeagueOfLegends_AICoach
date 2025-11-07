@@ -1,8 +1,10 @@
 import json
-from pathlib import Path
+import os
 from typing import Dict, List
 from collections import defaultdict
 import logging
+from pymongo import MongoClient
+import boto3
 
 logger = logging.getLogger(__name__)
 
@@ -10,71 +12,89 @@ logger = logging.getLogger(__name__)
 class TimelineAggregator:
     """
     Service to aggregate timeline data for year recap heatmaps.
-    Reads timeline data dynamically from the Sneaky_data directory.
+    Fetches timeline data from MongoDB Atlas and match data from DynamoDB.
     """
 
-    def __init__(self, data_dir: str = "Sneaky_data"):
-        self.data_dir = Path(data_dir)
-        self.timelines_dir = self.data_dir / "matches" / "timelines"
-        self.matches_dir = self.data_dir / "matches"
+    def __init__(self):
+        # MongoDB Atlas connection
+        self.mongo_connection = os.getenv('MONGODB_CONNECTION_STRING')
+        self.mongo_client = MongoClient(self.mongo_connection)
+        self.mongo_db = self.mongo_client['lol_timelines']
 
-    def _get_participant_id_for_puuid(self, match_id: str, target_puuid: str) -> int:
+        # DynamoDB connection
+        self.aws_region = os.getenv('AWS_REGION', 'us-east-1')
+        self.dynamodb = boto3.resource('dynamodb', region_name=self.aws_region)
+        self.dynamodb_table = self.dynamodb.Table('lol-player-data')
+
+    def _get_participant_id_for_puuid(self, match_data: Dict, target_puuid: str) -> int:
         """Get the participant ID for a given PUUID in a match"""
-        # Try to find the match file
-        match_files = list(self.matches_dir.glob(f"match_*{match_id}.json"))
-
-        if not match_files:
-            logger.warning(f"Match file not found for {match_id}")
-            return None
-
         try:
-            with open(match_files[0], 'r') as f:
-                match_data = json.load(f)
-
             participants = match_data['metadata']['participants']
             for idx, puuid in enumerate(participants, 1):
                 if puuid == target_puuid:
                     return idx
-
         except Exception as e:
-            logger.error(f"Error reading match file {match_files[0]}: {e}")
+            logger.error(f"Error getting participant ID: {e}")
+
+        return None
+
+    def _get_match_data_from_dynamodb(self, puuid: str, match_id: str) -> Dict:
+        """Fetch match data from DynamoDB"""
+        try:
+            from boto3.dynamodb.conditions import Key
+
+            response = self.dynamodb_table.query(
+                KeyConditionExpression=Key('puuid').eq(puuid) & Key('dataType').eq(f'match#{match_id}')
+            )
+
+            if response['Items']:
+                return response['Items'][0].get('data', {})
+        except Exception as e:
+            logger.error(f"Error fetching match from DynamoDB: {e}")
 
         return None
 
     def generate_heatmap_data(self, target_puuid: str, player_name: str = "Player") -> Dict:
         """
         Generate heatmap data for all timeline events for a specific player.
+        Fetches data from MongoDB Atlas and DynamoDB.
 
         Returns:
             Dict with stats and heatmap data for deaths, kills, assists, objectives
         """
         logger.info(f"Generating heatmap data for {player_name}")
 
-        # Get all timeline files
-        timeline_files = list(self.timelines_dir.glob("timeline_*.json"))
-        if not timeline_files:
-            logger.warning("No timeline files found")
+        # Get all timelines for this player from MongoDB
+        try:
+            timelines_cursor = self.mongo_db.timelines.find({'puuid': target_puuid})
+            timelines = list(timelines_cursor)
+        except Exception as e:
+            logger.error(f"Error fetching timelines from MongoDB: {e}")
             return self._empty_response(target_puuid, player_name)
+
+        if not timelines:
+            logger.warning(f"No timeline data found in MongoDB for PUUID: {target_puuid}")
+            return self._empty_response(target_puuid, player_name)
+
+        logger.info(f"Found {len(timelines)} timelines in MongoDB")
 
         # Build match_id -> participant_id mapping
         puuid_to_participant_map = {}
 
-        for timeline_file in timeline_files:
-            if timeline_file.name == "fetch_summary.json":
-                continue
-
+        for timeline_doc in timelines:
             try:
-                with open(timeline_file, 'r') as f:
-                    timeline_data = json.load(f)
+                match_id = timeline_doc['matchId']
 
-                match_id = timeline_data['metadata']['matchId']
-                participant_id = self._get_participant_id_for_puuid(match_id, target_puuid)
+                # Get match data from DynamoDB to find participant ID
+                match_data = self._get_match_data_from_dynamodb(target_puuid, match_id)
 
-                if participant_id:
-                    puuid_to_participant_map[match_id] = participant_id
+                if match_data:
+                    participant_id = self._get_participant_id_for_puuid(match_data, target_puuid)
+                    if participant_id:
+                        puuid_to_participant_map[match_id] = participant_id
 
             except Exception as e:
-                logger.error(f"Error reading {timeline_file.name}: {e}")
+                logger.error(f"Error processing timeline for match {timeline_doc.get('matchId')}: {e}")
                 continue
 
         logger.info(f"Found player in {len(puuid_to_participant_map)} matches")
@@ -104,21 +124,16 @@ class TimelineAggregator:
             "objectives": defaultdict(int)
         }
 
-        # Process each timeline file
-        for timeline_file in timeline_files:
-            if timeline_file.name == "fetch_summary.json":
-                continue
-
+        # Process each timeline from MongoDB
+        for timeline_doc in timelines:
             try:
-                with open(timeline_file, 'r') as f:
-                    timeline_data = json.load(f)
-
-                match_id = timeline_data['metadata']['matchId']
+                match_id = timeline_doc['matchId']
 
                 if match_id not in puuid_to_participant_map:
                     continue
 
                 player_participant_id = puuid_to_participant_map[match_id]
+                timeline_data = timeline_doc['data']
 
                 # Process each frame
                 for frame in timeline_data['info']['frames']:
@@ -196,7 +211,7 @@ class TimelineAggregator:
                                 timeline_stats['objectives'][minute_bucket] += 1
 
             except Exception as e:
-                logger.error(f"Error processing {timeline_file.name}: {e}")
+                logger.error(f"Error processing timeline for match {match_id}: {e}")
                 continue
 
         logger.info(f"Generated heatmap: {stats}")
