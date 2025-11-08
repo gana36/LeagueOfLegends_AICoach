@@ -9,6 +9,7 @@ import YearRecapPage from './components/YearRecapPage';
 import PerformanceAnalyticsPage from './components/PerformanceAnalyticsPage';
 import PlayerSearch from './components/PlayerSearch';
 import MatchSelector from './components/MatchSelector';
+import { DataCacheProvider } from './contexts/DataCacheContext';
 const EMPTY_MATCH_DATA = { info: { frames: [] } };
 const EMPTY_MATCH_SUMMARY = { info: { participants: [] } };
 
@@ -59,6 +60,10 @@ function App() {
   const [detailsModalPlayer, setDetailsModalPlayer] = useState(null);
   const [showFrameEvents, setShowFrameEvents] = useState(false);
   const [isMatchDropdownOpen, setIsMatchDropdownOpen] = useState(false);
+
+  // Cache for timeline data to prevent duplicate fetches
+  const [timelineCache, setTimelineCache] = useState({});
+  const [pendingTimelineRequests, setPendingTimelineRequests] = useState({});
 
   const frames = matchData?.info?.frames ?? [];
   
@@ -201,12 +206,14 @@ function App() {
     // Reset performance analytics data so it fetches for the new player
     setPerformanceAnalyticsData(null);
 
-    // Reset match data
+    // Reset match data and clear timeline cache
     setCurrentMatchId(null);
     setMatchData(EMPTY_MATCH_DATA);
     setMatchSummary(EMPTY_MATCH_SUMMARY);
     setCurrentFrameIndex(0);
     setIsPlaying(false);
+    setTimelineCache({});
+    setPendingTimelineRequests({});
 
     // Close the search modal
     setShowPlayerSearch(false);
@@ -215,7 +222,7 @@ function App() {
     // For now, we'll stay on the current page
   };
 
-  // Handle match selection
+  // Handle match selection with timeline caching
   const handleMatchSelect = async (matchInfo) => {
     console.log('Match selected:', matchInfo);
 
@@ -227,7 +234,7 @@ function App() {
       // Set match summary immediately (from DynamoDB data)
       setMatchSummary(matchInfo.fullData || EMPTY_MATCH_SUMMARY);
 
-      // Find the participant ID for the current player (Sneaky#NA1)
+      // Find the participant ID for the current player
       const participantIdForPlayer = matchInfo.fullData?.info?.participants?.find(
         participant => participant.puuid === currentPuuid
       )?.participantId;
@@ -235,35 +242,83 @@ function App() {
         setMainParticipantId(participantIdForPlayer);
       }
 
-      // Fetch timeline data from MongoDB
-      const timelineResponse = await fetch(
-        `${API_BASE_URL}/api/player/match/timeline/${matchInfo.matchId}`
-      );
-
-      if (!timelineResponse.ok) {
-        throw new Error('Failed to fetch match timeline');
-      }
-
-      const timelineData = await timelineResponse.json();
-
-      if (timelineData.success) {
-        const timelinePayload = timelineData.timeline?.data || timelineData.timeline || EMPTY_MATCH_DATA;
-        if (!timelinePayload?.info?.frames) {
-          throw new Error('Timeline data missing frames');
-        }
-
-        // Set the timeline data
-        setMatchData(timelinePayload);
-
-        // Reset playback
+      // Check cache first
+      if (timelineCache[matchInfo.matchId]) {
+        console.log('Using cached timeline data for:', matchInfo.matchId);
+        setMatchData(timelineCache[matchInfo.matchId]);
         setCurrentFrameIndex(0);
         setIsPlaying(false);
-      } else {
-        throw new Error('Timeline data not available');
+        setLoadingMatch(false);
+        return;
       }
+
+      // Check if request is already pending
+      if (pendingTimelineRequests[matchInfo.matchId]) {
+        console.log('Timeline request already pending for:', matchInfo.matchId);
+        const timelinePayload = await pendingTimelineRequests[matchInfo.matchId];
+        setMatchData(timelinePayload);
+        setCurrentFrameIndex(0);
+        setIsPlaying(false);
+        setLoadingMatch(false);
+        return;
+      }
+
+      // Create new request
+      const requestPromise = (async () => {
+        const timelineResponse = await fetch(
+          `${API_BASE_URL}/api/player/match/timeline/${matchInfo.matchId}`
+        );
+
+        if (!timelineResponse.ok) {
+          throw new Error('Failed to fetch match timeline');
+        }
+
+        const timelineData = await timelineResponse.json();
+
+        if (timelineData.success) {
+          const timelinePayload = timelineData.timeline?.data || timelineData.timeline || EMPTY_MATCH_DATA;
+          if (!timelinePayload?.info?.frames) {
+            throw new Error('Timeline data missing frames');
+          }
+
+          // Cache the timeline data
+          setTimelineCache(prev => ({ ...prev, [matchInfo.matchId]: timelinePayload }));
+
+          // Remove from pending requests
+          setPendingTimelineRequests(prev => {
+            const updated = { ...prev };
+            delete updated[matchInfo.matchId];
+            return updated;
+          });
+
+          return timelinePayload;
+        } else {
+          throw new Error('Timeline data not available');
+        }
+      })();
+
+      // Store pending request
+      setPendingTimelineRequests(prev => ({ ...prev, [matchInfo.matchId]: requestPromise }));
+
+      // Wait for result
+      const timelinePayload = await requestPromise;
+
+      // Set the timeline data
+      setMatchData(timelinePayload);
+
+      // Reset playback
+      setCurrentFrameIndex(0);
+      setIsPlaying(false);
     } catch (error) {
       console.error('Error loading match:', error);
       setMatchError(error.message);
+
+      // Remove from pending requests on error
+      setPendingTimelineRequests(prev => {
+        const updated = { ...prev };
+        delete updated[matchInfo.matchId];
+        return updated;
+      });
     } finally {
       setLoadingMatch(false);
     }
@@ -341,6 +396,7 @@ function App() {
   }, [currentPuuid]);
 
   return (
+    <DataCacheProvider>
     <div className="h-screen w-screen bg-bg-dark flex flex-col overflow-hidden">
       {/* Navigation Bar */}
       <div className="bg-gray-900 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
@@ -395,6 +451,8 @@ function App() {
       {currentPage === 'year-recap' ? (
         <YearRecapPage
           yearRecapData={yearRecapData}
+          puuid={currentPuuid}
+          playerName={currentPlayerName}
           loading={yearRecapLoading}
           error={yearRecapError}
         />
@@ -535,6 +593,7 @@ function App() {
         </div>
       )}
     </div>
+    </DataCacheProvider>
   );
 }
 
