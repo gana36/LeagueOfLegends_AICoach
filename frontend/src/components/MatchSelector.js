@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getChampionImageUrl } from '../utils/championImages';
 import './MatchSelector.css';
 
-const MatchSelector = ({ puuid, onMatchSelect, currentMatchId }) => {
+const MatchSelector = ({ puuid, onMatchSelect, currentMatchId, onDropdownChange, forceClose }) => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -13,6 +13,14 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId }) => {
       fetchMatches();
     }
   }, [puuid]);
+
+  // Close dropdown when parent requests it
+  useEffect(() => {
+    if (forceClose && isOpen) {
+      setIsOpen(false);
+      if (onDropdownChange) onDropdownChange(false);
+    }
+  }, [forceClose, isOpen, onDropdownChange]);
 
   const fetchMatches = async () => {
     if (!puuid) {
@@ -74,6 +82,7 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId }) => {
   const handleMatchClick = (match) => {
     onMatchSelect(match);
     setIsOpen(false);
+    if (onDropdownChange) onDropdownChange(false);
   };
 
   if (loading) {
@@ -94,7 +103,11 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId }) => {
     <div className="match-selector">
       <button
         className="match-selector-button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          const newState = !isOpen;
+          setIsOpen(newState);
+          if (onDropdownChange) onDropdownChange(newState);
+        }}
       >
         <div className="current-match-display">
           <span className="champion-name">{currentMatch?.championName}</span>
@@ -111,7 +124,10 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId }) => {
 
       {isOpen && (
         <>
-          <div className="match-selector-overlay" onClick={() => setIsOpen(false)} />
+          <div className="match-selector-overlay" onClick={() => {
+            setIsOpen(false);
+            if (onDropdownChange) onDropdownChange(false);
+          }} />
           <div className="match-selector-dropdown">
             <div className="match-list-header">
               <h3>Select Match ({matches.length} available)</h3>

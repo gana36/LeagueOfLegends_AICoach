@@ -10,6 +10,7 @@ from services.riot_api import RiotAPIClient
 from services.bedrock_ai import BedrockAIService
 from services.match_analyzer import MatchAnalyzer
 from services.coaching_agent import CoachingAgent
+from services.match_chat_agent import MatchChatAgent
 from services.timeline_aggregator import TimelineAggregator
 from services.demo_data import (
     DEMO_PLAYER,
@@ -58,6 +59,7 @@ except Exception as e:
 
 match_analyzer = MatchAnalyzer(riot_client, bedrock_service) if bedrock_service else None
 coaching_agent = CoachingAgent(riot_client) if riot_client else None
+match_chat_agent = MatchChatAgent()
 timeline_aggregator = TimelineAggregator()
 
 
@@ -102,6 +104,12 @@ class ChallengesRequest(BaseModel):
 class YearRecapHeatmapRequest(BaseModel):
     puuid: str
     player_name: str = "Player"
+
+
+class MatchChatRequest(BaseModel):
+    message: str
+    context: dict
+    conversation_history: Optional[List[dict]] = None
 
 
 @app.get("/")
@@ -386,6 +394,27 @@ async def get_demo_strengths_weaknesses():
     """Get demo strengths and weaknesses for testing"""
     logger.info("Returning demo strengths and weaknesses")
     return DEMO_STRENGTHS_WEAKNESSES
+
+
+@app.post("/api/chat/match-analysis")
+async def chat_match_analysis(request: MatchChatRequest):
+    """
+    Chat endpoint for match analysis with agentic capabilities
+    """
+    try:
+        logger.info(f"Match chat request: {request.message}")
+        
+        response = await match_chat_agent.chat(
+            message=request.message,
+            context=request.context,
+            conversation_history=request.conversation_history
+        )
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Match chat error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

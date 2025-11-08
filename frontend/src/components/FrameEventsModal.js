@@ -470,7 +470,7 @@ const FrameEventsModal = ({ frame, frameIndex, onClose, onEventClick, participan
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[1100] p-4" onClick={onClose}>
       <div 
         className="bg-surface rounded-lg shadow-2xl border-2 border-primary-gold max-w-4xl w-full h-[85vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}

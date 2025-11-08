@@ -58,6 +58,7 @@ function App() {
   const [pinnedPlayers, setPinnedPlayers] = useState([]);
   const [detailsModalPlayer, setDetailsModalPlayer] = useState(null);
   const [showFrameEvents, setShowFrameEvents] = useState(false);
+  const [isMatchDropdownOpen, setIsMatchDropdownOpen] = useState(false);
 
   const frames = matchData?.info?.frames ?? [];
   
@@ -176,6 +177,7 @@ function App() {
 
   const handlePlayerClick = (participantId) => {
     setDetailsModalPlayer(participantId);
+    setIsMatchDropdownOpen(false); // Close dropdown when modal opens
   };
 
   const handlePinPlayer = (participantId) => {
@@ -421,6 +423,8 @@ function App() {
           puuid={currentPuuid}
           onMatchSelect={handleMatchSelect}
           currentMatchId={currentMatchId}
+          onDropdownChange={setIsMatchDropdownOpen}
+          forceClose={detailsModalPlayer !== null || showFrameEvents}
         />
         {loadingMatch && (
           <div className="text-center text-yellow-500 text-sm mt-2">
@@ -465,6 +469,14 @@ function App() {
           onClose={() => setSelectedPlayer(null)}
           participantSummary={participantSummaryById}
           mainParticipantId={mainParticipantId}
+          matchData={matchData}
+          matchSummary={matchSummary}
+          currentFrameIndex={currentFrameIndex}
+          onNavigateToFrame={handleTimelineChange}
+          eventToggles={eventToggles}
+          onToggleEvent={(eventType, enabled) => {
+            setEventToggles(prev => ({ ...prev, [eventType]: enabled }));
+          }}
         />
       </div>
       

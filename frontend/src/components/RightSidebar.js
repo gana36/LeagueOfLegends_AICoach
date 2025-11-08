@@ -1,9 +1,24 @@
 import React from 'react';
 import { getChampionImageUrl } from '../utils/championImages';
+import { MatchContextExtractor } from '../utils/matchContextExtractor';
 
 const CHAMPION_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/12.4.1/img/champion';
 
-const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer, onClose, participantSummary = {}, mainParticipantId = 1 }) => {
+const RightSidebar = ({ 
+  currentFrame, 
+  selectedPlayer, 
+  pinnedPlayers, 
+  onPinPlayer, 
+  onClose, 
+  participantSummary = {}, 
+  mainParticipantId = 1,
+  matchData,
+  matchSummary,
+  currentFrameIndex,
+  onNavigateToFrame,
+  eventToggles,
+  onToggleEvent
+}) => {
   const [isChatOpen, setIsChatOpen] = React.useState(false);
   const [chatInput, setChatInput] = React.useState('');
   const [chatMessages, setChatMessages] = React.useState([
@@ -15,12 +30,22 @@ const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer
       content: 'Ping me when you need quick analysis or a next-step suggestion.'
     }
   ]);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [conversationHistory, setConversationHistory] = React.useState([]);
   const chatScrollRef = React.useRef(null);
+  const lastMessageRef = React.useRef(null);
   const chatInputRef = React.useRef(null);
 
+  // Initialize context extractor
+  const contextExtractor = React.useMemo(() => {
+    if (!matchData?.info?.frames?.length) return null;
+    return new MatchContextExtractor(matchData, matchSummary, mainParticipantId);
+  }, [matchData, matchSummary, mainParticipantId]);
+
   React.useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    if (!isChatOpen) return;
+    if (lastMessageRef.current) {
+      lastMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [chatMessages, isChatOpen]);
 
@@ -38,9 +63,9 @@ const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer
   const suggestedTasks = React.useMemo(
     () => (
       [
-        { id: 'sidebar-ui', label: 'Right Sidebar UI Refinement', eta: '2m' },
-        { id: 'agentic-chat', label: 'Agentic Match Analysis Chat', eta: '48m' },
-        { id: 'live-insights', label: 'Integrate Live AI Insights', eta: '4h' }
+        { id: 'first-blood', label: 'Show me first blood', eta: '' },
+        { id: 'first-dragon', label: 'When was the first dragon?', eta: '' },
+        { id: 'my-kda', label: 'What was my KDA?', eta: '' }
       ]
     ),
     []
@@ -223,23 +248,107 @@ const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer
     );
   };
 
-  const handleSendChatMessage = (event) => {
+  const handleSendChatMessage = async (event) => {
     event.preventDefault();
-    const trimmedMessage = chatInput.trim();
-    if (!trimmedMessage) return;
+    const message = chatInput.trim();
+    if (!message || !contextExtractor) return;
 
-    const now = new Date();
-    setChatMessages(prev => ([
-      ...prev,
-      {
-        id: `${now.getTime()}`,
-        role: 'user',
-        author: 'You',
-        timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        content: trimmedMessage
-      }
-    ]));
+    // Add user message
+    const userMessage = {
+      id: Date.now(),
+      role: 'user',
+      author: 'You',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      content: message
+    };
+    setChatMessages(prev => [...prev, userMessage]);
     setChatInput('');
+    setIsLoading(true);
+
+    // Add thinking indicator
+    const thinkingMessage = {
+      id: 'thinking',
+      role: 'assistant',
+      author: 'Rift Copilot',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      content: '',
+      isThinking: true
+    };
+    setChatMessages(prev => [...prev, thinkingMessage]);
+
+    try {
+      // Build context
+      const context = contextExtractor.buildChatContext(currentFrameIndex, selectedPlayer);
+
+      // Call backend with conversation history
+      const response = await fetch('http://localhost:8000/api/chat/match-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message, 
+          context,
+          conversation_history: conversationHistory 
+        })
+      });
+
+      const data = await response.json();
+
+      // Update conversation history
+      if (data.conversation_history) {
+        setConversationHistory(data.conversation_history);
+      }
+
+      // Remove thinking indicator and add AI response
+      const aiMessage = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        author: 'Rift Copilot',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        content: data.response,
+        action: data.action // Attach action to message for inline display
+      };
+      setChatMessages(prev => prev.filter(m => m.id !== 'thinking').concat(aiMessage));
+    } catch (error) {
+      console.error('Chat error:', error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        author: 'Rift Copilot',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        content: 'Sorry, I encountered an error. Please try again.'
+      };
+      setChatMessages(prev => prev.filter(m => m.id !== 'thinking').concat(errorMessage));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const executeAction = (action) => {
+    if (action.type === 'multi_action') {
+      // Execute multiple actions in sequence
+      action.actions.forEach(subAction => {
+        executeAction(subAction);
+      });
+      return;
+    }
+
+    switch(action.type) {
+      case 'navigate_timeline':
+        if (onNavigateToFrame && action.params.frameIndex !== undefined) {
+          onNavigateToFrame(action.params.frameIndex);
+        }
+        break;
+      
+      case 'toggle_event':
+        if (onToggleEvent && action.params.eventType) {
+          onToggleEvent(action.params.eventType, action.params.enabled);
+        }
+        break;
+      
+      case 'select_player':
+        // Handle player selection
+        break;
+    }
   };
 
   return (
@@ -328,7 +437,7 @@ const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer
       {isChatOpen && (
         <div className="absolute inset-0 z-30 bg-[#0d0d0d]/98 backdrop-blur-2xl flex flex-col">
             {/* Top bar */}
-            <div className="px-4 py-3.5 border-b border-white/[0.08] flex items-center justify-between">
+            <div className="px-4 py-3.5 border-b border-white/[0.08] flex items-center justify-between sticky top-0 bg-[#0d0d0d]/98 backdrop-blur-2xl">
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-gold/20 to-primary-gold/5 border border-primary-gold/25 flex items-center justify-center">
                   <span className="text-xs font-bold text-primary-gold">RC</span>
@@ -351,7 +460,7 @@ const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer
             </div>
 
             {/* Content */}
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 min-h-0 flex flex-col">
               {showWelcome ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center gap-5 px-5 py-6">
                   <div className="flex flex-col items-center gap-3">
@@ -367,46 +476,124 @@ const RightSidebar = ({ currentFrame, selectedPlayer, pinnedPlayers, onPinPlayer
                   </div>
                 </div>
               ) : (
-                <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-                  {chatMessages.map(message => (
-                    <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[90%] rounded-xl px-3.5 py-2.5 ${
+                <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3 space-y-3">
+                  {chatMessages.map((message, index) => {
+                    const isLastMessage = index === chatMessages.length - 1;
+                    return (
+                    <div
+                      key={message.id}
+                      ref={isLastMessage ? lastMessageRef : null}
+                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-[90%] ${
                         message.role === 'user'
-                          ? 'bg-primary-gold/10 border border-primary-gold/20 text-white'
-                          : 'bg-white/[0.04] border border-white/[0.08] text-white/90'
+                          ? 'bg-primary-gold/10 border border-primary-gold/20 text-white rounded-xl px-3.5 py-2.5'
+                          : 'space-y-2'
                       }`}>
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className={`text-[11px] font-medium ${message.role === 'user' ? 'text-white' : 'text-primary-gold'}`}>{message.author}</span>
-                          <span className="text-[10px] text-white/30">{message.timestamp}</span>
-                        </div>
-                        <p className="text-[13px] leading-relaxed">{message.content}</p>
+                        {message.role === 'user' ? (
+                          <>
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="text-[11px] font-medium text-white">{message.author}</span>
+                              <span className="text-[10px] text-white/30">{message.timestamp}</span>
+                            </div>
+                            <p className="text-[13px] leading-relaxed">{message.content}</p>
+                          </>
+                        ) : (
+                          <>
+                            <div className="bg-white/[0.04] border border-white/[0.08] text-white/90 rounded-xl px-3.5 py-2.5">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <span className="text-[11px] font-medium text-primary-gold">{message.author}</span>
+                                <span className="text-[10px] text-white/30">{message.timestamp}</span>
+                              </div>
+                              {message.isThinking ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="flex gap-1">
+                                    <div className="w-2 h-2 bg-primary-gold/60 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></div>
+                                    <div className="w-2 h-2 bg-primary-gold/60 rounded-full animate-pulse" style={{ animationDelay: '150ms' }}></div>
+                                    <div className="w-2 h-2 bg-primary-gold/60 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></div>
+                                  </div>
+                                  <span className="text-[13px] text-white/40">Thinking...</span>
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {String(message.content)
+                                    .split('\n')
+                                    .map((line, lineIndex) => (
+                                      line.trim().length > 0 ? (
+                                        <p key={lineIndex} className="text-[13px] leading-relaxed">
+                                          {line}
+                                        </p>
+                                      ) : (
+                                        <div key={lineIndex} className="h-2" />
+                                      )
+                                    ))}
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Inline action buttons */}
+                            {message.action && message.action.requiresPermission && (
+                              <div className="flex gap-2 pl-2">
+                                <button
+                                  onClick={() => {
+                                    executeAction(message.action);
+                                    // Remove action after execution
+                                    setChatMessages(prev => prev.map(m => 
+                                      m.id === message.id ? { ...m, action: null } : m
+                                    ));
+                                  }}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-gold/90 hover:bg-primary-gold text-bg-dark rounded-md text-xs font-medium transition-colors"
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="stroke-current">
+                                    <path d="M6 2L6 10M6 10L3 7M6 10L9 7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                  {message.action.type === 'multi_action' ? 'Show me' : `Jump to ${message.action.params?.frameIndex ? Math.floor(message.action.params.frameIndex) + ':00' : 'moment'}`}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    // Remove action on cancel
+                                    setChatMessages(prev => prev.map(m => 
+                                      m.id === message.id ? { ...m, action: null } : m
+                                    ));
+                                  }}
+                                  className="px-3 py-1.5 bg-white/[0.08] hover:bg-white/[0.12] text-white/70 hover:text-white rounded-md text-xs font-medium transition-colors"
+                                >
+                                  Dismiss
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
-              <div className="px-4 pb-3">
-                <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2.5">
-                  <p className="text-[10px] uppercase tracking-wider text-white/30 mb-2 font-medium">Suggested</p>
-                  <div className="space-y-1">
-                    {suggestedTasks.map(task => (
-                      <button
-                        key={task.id}
-                        type="button"
-                        onClick={() => {
-                          setChatInput(task.label);
-                          if (chatInputRef.current) chatInputRef.current.focus();
-                        }}
-                        className="w-full flex items-center justify-between rounded-md bg-white/[0.02] hover:bg-white/[0.06] px-2.5 py-2 text-xs text-white/70 hover:text-white/90 transition-all group"
-                      >
-                        <span className="truncate">{task.label}</span>
-                        <span className="text-[10px] text-white/30 group-hover:text-white/40">{task.eta}</span>
-                      </button>
-                    ))}
+              {/* Only show suggested tasks if no user messages yet */}
+              {!hasUserMessages && (
+                <div className="px-4 pb-3">
+                  <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-wider text-white/30 mb-2 font-medium">Suggested</p>
+                    <div className="space-y-1">
+                      {suggestedTasks.map(task => (
+                        <button
+                          key={task.id}
+                          type="button"
+                          onClick={() => {
+                            setChatInput(task.label);
+                            if (chatInputRef.current) chatInputRef.current.focus();
+                          }}
+                          className="w-full text-left rounded-md bg-white/[0.02] hover:bg-white/[0.06] px-2.5 py-2 text-xs text-white/70 hover:text-white/90 transition-all"
+                        >
+                          <span className="truncate">{task.label}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Input */}
