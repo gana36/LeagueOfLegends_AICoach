@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { getChampionImageUrl } from '../utils/championImages';
 import { MatchContextExtractor } from '../utils/matchContextExtractor';
 
@@ -17,7 +18,10 @@ const RightSidebar = ({
   currentFrameIndex,
   onNavigateToFrame,
   eventToggles,
-  onToggleEvent
+  onToggleEvent,
+  onOpenPlayerModal,
+  onOpenFrameEventsModal,
+  onSetPlayerFilter
 }) => {
   const [isChatOpen, setIsChatOpen] = React.useState(false);
   const [chatInput, setChatInput] = React.useState('');
@@ -308,6 +312,11 @@ const RightSidebar = ({
         action: data.action // Attach action to message for inline display
       };
       setChatMessages(prev => prev.filter(m => m.id !== 'thinking').concat(aiMessage));
+      
+      // Auto-execute actions that don't require permission
+      if (data.action && !data.action.requiresPermission) {
+        executeAction(data.action);
+      }
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage = {
@@ -321,6 +330,45 @@ const RightSidebar = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleOpenCard = (params) => {
+    console.log('Opening card:', params);
+    
+    if (params.cardType === 'player' && params.data) {
+      // Find participant ID from player data
+      const participantId = params.data.id;
+      if (participantId && onOpenPlayerModal) {
+        onOpenPlayerModal(participantId);
+      }
+    } else if (params.cardType === 'frame_events') {
+      if (onOpenFrameEventsModal) {
+        onOpenFrameEventsModal();
+      }
+    } else if (params.cardType === 'dragon' || params.cardType === 'kill') {
+      // For dragon/kill cards, navigate to the event and open frame events modal
+      if (params.data?.frameIndex !== undefined && onNavigateToFrame) {
+        onNavigateToFrame(params.data.frameIndex);
+        // Small delay to let navigation complete, then open modal
+        setTimeout(() => {
+          if (onOpenFrameEventsModal) {
+            onOpenFrameEventsModal();
+          }
+        }, 100);
+      }
+    }
+  };
+
+  const postActionMessage = (markdownContent) => {
+    if (!markdownContent) return;
+    const actionMessage = {
+      id: `${Date.now()}-action`,
+      role: 'assistant',
+      author: 'Rift Copilot',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      content: markdownContent
+    };
+    setChatMessages(prev => [...prev, actionMessage]);
   };
 
   const executeAction = (action) => {
@@ -344,6 +392,45 @@ const RightSidebar = ({
           onToggleEvent(action.params.eventType, action.params.enabled);
         }
         break;
+      
+      case 'toggle_map_filter':
+        if (onSetPlayerFilter && action.params.filter) {
+          const filterMap = {
+            'my_team': 'team',
+            'enemy_team': 'opponents',
+            'all': 'all',
+            'blue_team': 'blueTeam',
+            'red_team': 'redTeam'
+          };
+          const mappedFilter = filterMap[action.params.filter] || action.params.filter;
+          onSetPlayerFilter(mappedFilter);
+        }
+        break;
+      
+      case 'open_card':
+        // Handle card views
+        handleOpenCard(action.params);
+        break;
+      
+      case 'display_players': {
+        const { players = [], filter, sortBy } = action.params || {};
+        if (players.length) {
+          const header = `**${filter === 'my_team' ? 'Your Team' : 'Players'} (sorted by ${sortBy || 'kda'})**`;
+          const listLines = players.map(player => `- **${player.name}** (${player.champion}) — ${player.stats?.kda?.kills ?? 0}/${player.stats?.kda?.deaths ?? 0}/${player.stats?.kda?.assists ?? 0} KDA`);
+          postActionMessage([header, '', ...listLines].join('\n'));
+        }
+        break;
+      }
+      
+      case 'display_event_timeline': {
+        const { eventType, events = [] } = action.params || {};
+        if (events.length) {
+          const header = `**${eventType?.toUpperCase() || 'Events'} Timeline**`;
+          const listLines = events.map((event, idx) => `- ${idx + 1}. ${event.timestamp?.toFixed?.(1) ?? event.timestamp ?? '—'} min — ${event.description || event.summary || ''}`);
+          postActionMessage([header, '', ...listLines].join('\n'));
+        }
+        break;
+      }
       
       case 'select_player':
         // Handle player selection
@@ -515,18 +602,22 @@ const RightSidebar = ({
                                   <span className="text-[13px] text-white/40">Thinking...</span>
                                 </div>
                               ) : (
-                                <div className="space-y-1.5">
-                                  {String(message.content)
-                                    .split('\n')
-                                    .map((line, lineIndex) => (
-                                      line.trim().length > 0 ? (
-                                        <p key={lineIndex} className="text-[13px] leading-relaxed">
-                                          {line}
-                                        </p>
-                                      ) : (
-                                        <div key={lineIndex} className="h-2" />
-                                      )
-                                    ))}
+                                <div className="prose prose-invert prose-sm max-w-none">
+                                  <ReactMarkdown
+                                    components={{
+                                      p: ({node, ...props}) => <p className="text-[13px] leading-relaxed mb-2 last:mb-0" {...props} />,
+                                      strong: ({node, ...props}) => <strong className="text-primary-gold font-semibold" {...props} />,
+                                      ul: ({node, ...props}) => <ul className="text-[13px] list-disc list-inside space-y-1 my-2" {...props} />,
+                                      ol: ({node, ...props}) => <ol className="text-[13px] list-decimal list-inside space-y-1 my-2" {...props} />,
+                                      li: ({node, ...props}) => <li className="text-[13px]" {...props} />,
+                                      code: ({node, inline, ...props}) => 
+                                        inline ? 
+                                          <code className="bg-white/10 px-1.5 py-0.5 rounded text-[12px] text-primary-gold" {...props} /> :
+                                          <code className="block bg-white/10 p-2 rounded text-[12px] my-2" {...props} />
+                                    }}
+                                  >
+                                    {message.content}
+                                  </ReactMarkdown>
                                 </div>
                               )}
                             </div>

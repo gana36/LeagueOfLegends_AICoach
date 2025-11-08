@@ -162,6 +162,12 @@ export class MatchContextExtractor {
           (event.assistingParticipantIds || []).forEach(id => {
             if (id) participantsInvolved.add(id);
           });
+          
+          const assisters = (event.assistingParticipantIds || []).map(id => {
+            const assister = this.participants[id];
+            return assister ? assister.name : `Player ${id}`;
+          });
+          
           const objective = {
             frameIndex,
             timestamp,
@@ -171,6 +177,7 @@ export class MatchContextExtractor {
             position: event.position,
             monsterType: event.monsterType,
             monsterSubType: event.monsterSubType,
+            assisters: assisters,
             participants: Array.from(participantsInvolved)
           };
           if (event.monsterType === 'DRAGON') {
@@ -329,6 +336,8 @@ export class MatchContextExtractor {
       timeline: player.timeline.filter(point => point.minute % 5 === 0)
     }));
 
+    const quickFacts = this._buildQuickFacts(players);
+
     return {
       matchId: this.summary.gameId,
       durationMinutes: Number(this.gameDuration?.toFixed ? this.gameDuration.toFixed(1) : this.gameDuration),
@@ -377,7 +386,108 @@ export class MatchContextExtractor {
         heralds: this.eventIndex.heralds,
         recent: this.getRecentEvents(currentFrameIndex)
       },
-      players
+      players,
+      quickFacts
+    };
+  }
+
+  _buildQuickFacts(players) {
+    const bluePlayers = players.filter(p => p.team === 'blue');
+    const redPlayers = players.filter(p => p.team === 'red');
+
+    const getKDA = (p) => p.stats?.kda?.ratio || 0;
+    const getKills = (p) => p.stats?.kda?.kills || 0;
+    const getDeaths = (p) => p.stats?.kda?.deaths || 0;
+    const getAssists = (p) => p.stats?.kda?.assists || 0;
+    const getDamage = (p) => p.stats?.damage?.dealt || 0;
+    const getGold = (p) => p.stats?.gold?.earned || 0;
+
+    const sortByKDA = (a, b) => getKDA(b) - getKDA(a);
+    const sortByKills = (a, b) => getKills(b) - getKills(a);
+    const sortByDamage = (a, b) => getDamage(b) - getDamage(a);
+    const sortByGold = (a, b) => getGold(b) - getGold(a);
+
+    const formatPlayer = (p) => `${p.name} (${p.champion})`;
+    const formatKDA = (p) => `${getKills(p)}/${getDeaths(p)}/${getAssists(p)} (${getKDA(p).toFixed(2)} KDA)`;
+
+    return {
+      teamLeaders: {
+        blue: {
+          highestKDA: bluePlayers.length > 0 ? {
+            player: formatPlayer(bluePlayers.sort(sortByKDA)[0]),
+            value: formatKDA(bluePlayers[0])
+          } : null,
+          mostKills: bluePlayers.length > 0 ? {
+            player: formatPlayer(bluePlayers.sort(sortByKills)[0]),
+            value: getKills(bluePlayers[0])
+          } : null,
+          mostDamage: bluePlayers.length > 0 ? {
+            player: formatPlayer(bluePlayers.sort(sortByDamage)[0]),
+            value: getDamage(bluePlayers[0])
+          } : null,
+          mostGold: bluePlayers.length > 0 ? {
+            player: formatPlayer(bluePlayers.sort(sortByGold)[0]),
+            value: getGold(bluePlayers[0])
+          } : null
+        },
+        red: {
+          highestKDA: redPlayers.length > 0 ? {
+            player: formatPlayer(redPlayers.sort(sortByKDA)[0]),
+            value: formatKDA(redPlayers[0])
+          } : null,
+          mostKills: redPlayers.length > 0 ? {
+            player: formatPlayer(redPlayers.sort(sortByKills)[0]),
+            value: getKills(redPlayers[0])
+          } : null,
+          mostDamage: redPlayers.length > 0 ? {
+            player: formatPlayer(redPlayers.sort(sortByDamage)[0]),
+            value: getDamage(redPlayers[0])
+          } : null,
+          mostGold: redPlayers.length > 0 ? {
+            player: formatPlayer(redPlayers.sort(sortByGold)[0]),
+            value: getGold(redPlayers[0])
+          } : null
+        },
+        overall: {
+          highestKDA: players.length > 0 ? {
+            player: formatPlayer(players.sort(sortByKDA)[0]),
+            value: formatKDA(players[0])
+          } : null,
+          mostKills: players.length > 0 ? {
+            player: formatPlayer(players.sort(sortByKills)[0]),
+            value: getKills(players[0])
+          } : null,
+          mostDamage: players.length > 0 ? {
+            player: formatPlayer(players.sort(sortByDamage)[0]),
+            value: getDamage(players[0])
+          } : null
+        }
+      },
+      objectives: {
+        dragons: {
+          total: this.eventIndex.dragons.length,
+          blueTeam: this.eventIndex.dragons.filter(d => d.team === 'blue').length,
+          redTeam: this.eventIndex.dragons.filter(d => d.team === 'red').length,
+          first: this.eventIndex.dragons[0] ? `${this.eventIndex.dragons[0].team} team at ${this.eventIndex.dragons[0].timestamp?.toFixed(1)} min` : 'None'
+        },
+        barons: {
+          total: this.eventIndex.barons.length,
+          blueTeam: this.eventIndex.barons.filter(b => b.team === 'blue').length,
+          redTeam: this.eventIndex.barons.filter(b => b.team === 'red').length,
+          first: this.eventIndex.barons[0] ? `${this.eventIndex.barons[0].team} team at ${this.eventIndex.barons[0].timestamp?.toFixed(1)} min` : 'None'
+        },
+        towers: {
+          total: this.eventIndex.towers.length,
+          blueTeam: this.eventIndex.towers.filter(t => t.team === 'blue').length,
+          redTeam: this.eventIndex.towers.filter(t => t.team === 'red').length,
+          first: this.eventIndex.towers[0] ? `${this.eventIndex.towers[0].team} team at ${this.eventIndex.towers[0].timestamp?.toFixed(1)} min` : 'None'
+        }
+      },
+      teamComparison: {
+        kills: `Blue ${this.teamStats.blue.kills} - ${this.teamStats.red.kills} Red`,
+        gold: `Blue ${this.teamStats.blue.gold} - ${this.teamStats.red.gold} Red`,
+        damage: `Blue ${this.teamStats.blue.damage} - ${this.teamStats.red.damage} Red`
+      }
     };
   }
 

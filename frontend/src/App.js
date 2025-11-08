@@ -472,6 +472,9 @@ function App() {
           onToggleEvent={(eventType, enabled) => {
             setEventToggles(prev => ({ ...prev, [eventType]: enabled }));
           }}
+          onOpenPlayerModal={(participantId) => setDetailsModalPlayer(participantId)}
+          onOpenFrameEventsModal={() => setShowFrameEvents(true)}
+          onSetPlayerFilter={setPlayerFilter}
         />
       </div>
       
