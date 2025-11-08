@@ -17,7 +17,7 @@ const API_BASE_URL = 'http://localhost:8000';
 const SNEAKY_PUUID = 'BQD2G_OKDrt_YjF9A5qJvfzClUx0Fe2fPzQm8cqLQWnATfQmzBta-JAW3ZOGABb07RmYrpJ_AXr-cg';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('match');
+  const [currentPage, setCurrentPage] = useState('performance-analytics');
   
   // Handle hash routing for shared links
   const [showPlayerSearch, setShowPlayerSearch] = useState(false);
@@ -329,19 +329,14 @@ function App() {
     }
   };
 
-  // Fetch year recap data when navigating to that page (only if not already loaded)
+  // Fetch all analytics data upfront when app loads or player changes
   useEffect(() => {
-    if (currentPage === 'year-recap' && !yearRecapData) {
+    if (currentPuuid) {
+      // Fetch both Year Recap and Performance Analytics data in parallel
       fetchYearRecapData();
-    }
-  }, [currentPage, currentPuuid]);
-
-  // Fetch performance analytics when navigating to that page (only if not already loaded)
-  useEffect(() => {
-    if (currentPage === 'performance-analytics' && !performanceAnalyticsData) {
       fetchPerformanceAnalyticsData();
     }
-  }, [currentPage, currentPuuid]);
+  }, [currentPuuid]);
 
   return (
     <div className="h-screen w-screen bg-bg-dark flex flex-col overflow-hidden">
@@ -350,6 +345,16 @@ function App() {
         <div className="flex items-center gap-4">
           <div className="text-xl font-bold text-primary-gold">RIFT Analyzer</div>
           <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage('performance-analytics')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                currentPage === 'performance-analytics'
+                  ? 'bg-primary-gold text-bg-dark'
+                  : 'bg-gray-800 text-white hover:bg-gray-700'
+              }`}
+            >
+              Performance Analytics
+            </button>
             <button
               onClick={() => setCurrentPage('match')}
               className={`px-4 py-2 rounded-lg font-medium transition-all ${
@@ -369,16 +374,6 @@ function App() {
               }`}
             >
               Year Recap
-            </button>
-            <button
-              onClick={() => setCurrentPage('performance-analytics')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                currentPage === 'performance-analytics'
-                  ? 'bg-primary-gold text-bg-dark'
-                  : 'bg-gray-800 text-white hover:bg-gray-700'
-              }`}
-            >
-              Performance Analytics
             </button>
           </div>
         </div>
