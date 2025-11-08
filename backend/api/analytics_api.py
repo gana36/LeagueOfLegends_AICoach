@@ -10,6 +10,9 @@ import os
 import boto3
 from boto3.dynamodb.conditions import Key
 from collections import defaultdict
+from pymongo import MongoClient
+from services.habits_detector import HabitsDetector
+from services.narrative_generator import NarrativeGenerator
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -675,6 +678,41 @@ async def get_items_runes_stats(request: VisionStatsRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/items/batch")
+async def get_items_batch(item_ids: List[int]):
+    """Get multiple items information in one request"""
+    try:
+        import json
+        item_path = os.path.join(os.path.dirname(__file__), '..', 'static_data', 'item.json')
+
+        with open(item_path, 'r', encoding='utf-8') as f:
+            item_data = json.load(f)
+
+        results = {}
+        for item_id in item_ids:
+            item_id_str = str(item_id)
+            if item_id_str in item_data.get('data', {}):
+                item = item_data['data'][item_id_str]
+                results[item_id] = {
+                    'id': item_id,
+                    'name': item.get('name', f'Item {item_id}'),
+                    'description': item.get('plaintext', ''),
+                    'image': item.get('image', {}).get('full', f'{item_id}.png')
+                }
+            else:
+                results[item_id] = {
+                    'id': item_id,
+                    'name': f'Item {item_id}',
+                    'description': '',
+                    'image': f'{item_id}.png'
+                }
+
+        return {'success': True, 'items': results}
+    except Exception as e:
+        print(f"Error loading items batch: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/items/{item_id}")
 async def get_item_info(item_id: str):
     """Get item information by ID"""
@@ -708,6 +746,50 @@ async def get_item_info(item_id: str):
             'description': '',
             'image': f'{item_id}.png'
         }
+
+
+@router.post("/runes/batch")
+async def get_runes_batch(rune_ids: List[int]):
+    """Get multiple runes information in one request"""
+    try:
+        import json
+        rune_path = os.path.join(os.path.dirname(__file__), '..', 'static_data', 'runesReforged.json')
+
+        with open(rune_path, 'r', encoding='utf-8') as f:
+            rune_trees = json.load(f)
+
+        # Build a lookup map for runes
+        rune_lookup = {}
+        for tree in rune_trees:
+            for slot in tree.get('slots', []):
+                for rune in slot.get('runes', []):
+                    rune_id = rune.get('id')
+                    if rune_id:
+                        rune_lookup[rune_id] = {
+                            'id': rune_id,
+                            'name': rune.get('name', f'Rune {rune_id}'),
+                            'key': rune.get('key', ''),
+                            'icon': rune.get('icon', ''),
+                            'shortDesc': rune.get('shortDesc', '')
+                        }
+
+        results = {}
+        for rune_id in rune_ids:
+            if rune_id in rune_lookup:
+                results[rune_id] = rune_lookup[rune_id]
+            else:
+                results[rune_id] = {
+                    'id': rune_id,
+                    'name': f'Rune {rune_id}',
+                    'key': '',
+                    'icon': '',
+                    'shortDesc': ''
+                }
+
+        return {'success': True, 'runes': results}
+    except Exception as e:
+        print(f"Error loading runes batch: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/runes/{rune_id}")
@@ -750,3 +832,263 @@ async def get_rune_info(rune_id: int):
             'icon': '',
             'shortDesc': ''
         }
+
+
+class HabitsRequest(BaseModel):
+    puuid: str
+    time_range: Optional[int] = None  # Number of recent matches to analyze
+    rank: Optional[str] = "GOLD"  # Player's rank for context
+
+
+@router.post("/habits")
+async def get_player_habits(request: HabitsRequest):
+    """
+    Detect persistent gameplay habits (both good and bad)
+
+    Returns:
+        - List of good habits with metrics
+        - List of bad habits with recommendations
+        - Pattern summary statistics
+    """
+    try:
+        detector = HabitsDetector()
+        result = detector.detect_habits(
+            puuid=request.puuid,
+            time_range=request.time_range,
+            rank=request.rank
+        )
+
+        return result
+
+    except Exception as e:
+        import logging
+        import traceback
+        logger = logging.getLogger(__name__)
+        logger.error(f"Habits detection error: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class NarrativeRequest(BaseModel):
+    puuid: str
+    player_name: Optional[str] = "Player"
+    year: Optional[int] = 2024
+
+
+@router.post("/year-narrative")
+async def generate_year_narrative(request: NarrativeRequest):
+    """
+    Generate Spotify Wrapped-style year recap narrative
+
+    Returns:
+        - Multiple narrative "cards" with engaging storytelling
+        - Milestones and achievements
+        - AI-generated summary
+        - Shareable content
+    """
+    try:
+        generator = NarrativeGenerator()
+        result = generator.generate_year_narrative(
+            puuid=request.puuid,
+            player_name=request.player_name,
+            year=request.year
+        )
+
+        return result
+
+    except Exception as e:
+        import logging
+        import traceback
+        logger = logging.getLogger(__name__)
+        logger.error(f"Narrative generation error: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class FilteredHeatmapRequest(BaseModel):
+    puuid: str
+    event_type: str  # 'kills', 'deaths', 'assists', 'objectives'
+    champion_name: Optional[str] = None
+    role: Optional[str] = None
+    time_range: Optional[int] = None  # Number of recent matches
+
+
+@router.post("/filtered-heatmap")
+async def get_filtered_heatmap(request: FilteredHeatmapRequest):
+    """
+    Get filtered heatmap data on-the-fly based on dynamic criteria.
+
+    This endpoint allows unlimited filtering combinations:
+    - Filter by champion (e.g., "Varus", "Yasuo")
+    - Filter by role (e.g., "MIDDLE", "TOP")
+    - Filter by time range (e.g., last 20 matches)
+    - Or any combination of the above
+
+    Returns filtered event points with positions for heatmap visualization.
+    """
+    try:
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Connect to MongoDB for timeline data
+        mongo_connection = os.getenv('MONGODB_CONNECTION_STRING')
+        mongo_client = MongoClient(mongo_connection)
+        mongo_db = mongo_client['lol_timelines']
+
+        # Connect to DynamoDB for match data
+        dynamodb = boto3.resource('dynamodb', region_name=os.getenv('AWS_REGION', 'us-east-1'))
+        table = dynamodb.Table('lol-player-data')
+
+        logger.info(f"Filtering {request.event_type} - Champion: {request.champion_name}, Role: {request.role}, TimeRange: {request.time_range}")
+
+        # Get all timelines for this player from MongoDB
+        timelines_cursor = mongo_db.timelines.find({'puuid': request.puuid})
+        timelines = list(timelines_cursor)
+
+        if not timelines:
+            return {
+                "success": True,
+                "filtered_events": [],
+                "total_events": 0,
+                "filters_applied": {
+                    "champion": request.champion_name,
+                    "role": request.role,
+                    "time_range": request.time_range
+                }
+            }
+
+        logger.info(f"Found {len(timelines)} timeline documents")
+
+        # Build match metadata (champion, role) by fetching from DynamoDB
+        match_metadata = {}
+        participant_id_map = {}
+
+        # Limit to time_range if specified
+        timelines_to_process = timelines[:request.time_range] if request.time_range else timelines
+
+        for timeline_doc in timelines_to_process:
+            match_id = timeline_doc['matchId']
+
+            # Fetch match data from DynamoDB
+            try:
+                response = table.query(
+                    KeyConditionExpression=Key('puuid').eq(request.puuid) & Key('dataType').eq(f'match#{match_id}')
+                )
+
+                if response['Items']:
+                    match_data = response['Items'][0].get('data', {})
+
+                    # Find player's participant ID
+                    participants_puuids = match_data.get('metadata', {}).get('participants', [])
+                    for idx, puuid in enumerate(participants_puuids, 1):
+                        if puuid == request.puuid:
+                            participant_id_map[match_id] = idx
+                            break
+
+                    # Extract champion and role
+                    participants = match_data.get('info', {}).get('participants', [])
+                    for participant in participants:
+                        if participant.get('puuid') == request.puuid:
+                            match_metadata[match_id] = {
+                                'champion_name': participant.get('championName', 'Unknown'),
+                                'role': participant.get('teamPosition', 'Unknown')
+                            }
+                            break
+            except Exception as e:
+                logger.error(f"Error fetching match {match_id}: {e}")
+                continue
+
+        logger.info(f"Built metadata for {len(match_metadata)} matches")
+
+        # Apply filters and collect matching events
+        filtered_events = []
+        total_events_checked = 0
+
+        for timeline_doc in timelines_to_process:
+            match_id = timeline_doc['matchId']
+
+            if match_id not in participant_id_map or match_id not in match_metadata:
+                continue
+
+            metadata = match_metadata[match_id]
+            participant_id = participant_id_map[match_id]
+
+            # Apply champion filter
+            if request.champion_name and metadata['champion_name'] != request.champion_name:
+                continue
+
+            # Apply role filter
+            if request.role and metadata['role'] != request.role:
+                continue
+
+            # Process timeline events
+            timeline_data = timeline_doc['data']
+
+            for frame in timeline_data['info']['frames']:
+                for event in frame.get('events', []):
+                    if not event.get('position'):
+                        continue
+
+                    pos = event['position']
+                    timestamp = event['timestamp']
+                    event_matched = False
+                    event_data = {
+                        'x': pos['x'],
+                        'y': pos['y'],
+                        'timestamp': timestamp,
+                        'match_id': match_id,
+                        'champion_name': metadata['champion_name'],
+                        'role': metadata['role']
+                    }
+
+                    # Match event type
+                    if request.event_type == 'deaths':
+                        if event['type'] == 'CHAMPION_KILL' and event.get('victimId') == participant_id:
+                            event_data['killer_id'] = event.get('killerId')
+                            event_matched = True
+
+                    elif request.event_type == 'kills':
+                        if event['type'] == 'CHAMPION_KILL' and event.get('killerId') == participant_id:
+                            event_data['victim_id'] = event.get('victimId')
+                            event_matched = True
+
+                    elif request.event_type == 'assists':
+                        if event['type'] == 'CHAMPION_KILL' and participant_id in event.get('assistingParticipantIds', []):
+                            event_data['victim_id'] = event.get('victimId')
+                            event_matched = True
+
+                    elif request.event_type == 'objectives':
+                        if event['type'] == 'ELITE_MONSTER_KILL' and event.get('killerId') == participant_id:
+                            event_data['monster_type'] = event.get('monsterType')
+                            event_matched = True
+                        elif event['type'] == 'BUILDING_KILL':
+                            assisting = event.get('assistingParticipantIds', [])
+                            if participant_id in assisting or event.get('killerId') == participant_id:
+                                event_data['building_type'] = event.get('buildingType')
+                                event_matched = True
+
+                    if event_matched:
+                        filtered_events.append(event_data)
+                        total_events_checked += 1
+
+        logger.info(f"Filtered to {len(filtered_events)} events from {total_events_checked} total")
+
+        return {
+            "success": True,
+            "filtered_events": filtered_events,
+            "total_events": len(filtered_events),
+            "matches_analyzed": len(match_metadata),
+            "filters_applied": {
+                "event_type": request.event_type,
+                "champion": request.champion_name,
+                "role": request.role,
+                "time_range": request.time_range
+            }
+        }
+
+    except Exception as e:
+        import traceback
+        logger = logging.getLogger(__name__)
+        logger.error(f"Filtered heatmap error: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))

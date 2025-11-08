@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Zap, Shield, Swords, Heart } from 'lucide-react';
 import { Progress } from './ui/progress';
+import { useDataCache } from '../../contexts/DataCacheContext';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -27,32 +28,26 @@ interface ItemRuneSectionProps {
 export function ItemRuneSection({ comparisonMode, data, loading }: ItemRuneSectionProps) {
   const [itemsWithNames, setItemsWithNames] = useState<any[]>([]);
   const [runesWithInfo, setRunesWithInfo] = useState<any[]>([]);
+  const { getItemsInfo, getRunesInfo } = useDataCache();
 
-  // Fetch item and rune metadata
+  // Fetch item and rune metadata using cached data
   useEffect(() => {
     const fetchItemsAndRunes = async () => {
       if (data?.topItems) {
-        const itemsData = await Promise.all(
-          data.topItems.slice(0, 4).map(async (item: any) => {
-            try {
-              const response = await fetch(`${API_BASE_URL}/api/analytics/items/${item.itemId}`);
-              const itemInfo = await response.json();
-              return {
-                name: itemInfo.name,
-                usage: item.pickRate,
-                itemId: item.itemId,
-                color: 'red'
-              };
-            } catch (error) {
-              return {
-                name: `Item ${item.itemId}`,
-                usage: item.pickRate,
-                itemId: item.itemId,
-                color: 'red'
-              };
-            }
-          })
-        );
+        // Extract item IDs and batch fetch
+        const itemIds = data.topItems.slice(0, 4).map((item: any) => item.itemId);
+        const itemsInfo = await getItemsInfo(itemIds);
+
+        // Map to include usage data
+        const itemsData = data.topItems.slice(0, 4).map((item: any, index: number) => {
+          const itemInfo = itemsInfo[index];
+          return {
+            name: itemInfo?.name || `Item ${item.itemId}`,
+            usage: item.pickRate,
+            itemId: item.itemId,
+            color: 'red'
+          };
+        });
         setItemsWithNames(itemsData);
       } else {
         setItemsWithNames([
@@ -64,29 +59,21 @@ export function ItemRuneSection({ comparisonMode, data, loading }: ItemRuneSecti
       }
 
       if (data?.topRunes) {
-        const runesData = await Promise.all(
-          data.topRunes.slice(0, 4).map(async (rune: any) => {
-            try {
-              const response = await fetch(`${API_BASE_URL}/api/analytics/runes/${rune.runeId}`);
-              const runeInfo = await response.json();
-              return {
-                name: runeInfo.name,
-                usage: rune.pickRate,
-                runeId: rune.runeId,
-                icon: runeInfo.icon,
-                color: 'red'
-              };
-            } catch (error) {
-              return {
-                name: `Rune ${rune.runeId}`,
-                usage: rune.pickRate,
-                runeId: rune.runeId,
-                icon: '',
-                color: 'red'
-              };
-            }
-          })
-        );
+        // Extract rune IDs and batch fetch
+        const runeIds = data.topRunes.slice(0, 4).map((rune: any) => rune.runeId);
+        const runesInfo = await getRunesInfo(runeIds);
+
+        // Map to include usage data
+        const runesData = data.topRunes.slice(0, 4).map((rune: any, index: number) => {
+          const runeInfo = runesInfo[index];
+          return {
+            name: runeInfo?.name || `Rune ${rune.runeId}`,
+            usage: rune.pickRate,
+            runeId: rune.runeId,
+            icon: runeInfo?.icon || '',
+            color: 'red'
+          };
+        });
         setRunesWithInfo(runesData);
       } else {
         setRunesWithInfo([
@@ -99,7 +86,7 @@ export function ItemRuneSection({ comparisonMode, data, loading }: ItemRuneSecti
     };
 
     fetchItemsAndRunes();
-  }, [data]);
+  }, [data, getItemsInfo, getRunesInfo]);
 
   const items = itemsWithNames;
   const runes = runesWithInfo;

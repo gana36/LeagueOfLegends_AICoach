@@ -120,7 +120,7 @@ export function TrendCharts({ comparisonMode, data, loading, filters }: TrendCha
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
               <XAxis dataKey="match" stroke="#64748b" fontSize={10} />
-              <YAxis stroke="#64748b" fontSize={10} domain={['dataMin - 20', 'dataMax + 20']} />
+              <YAxis stroke="#64748b" fontSize={10} domain={['dataMin - 20', 'dataMax + 20']} tickFormatter={(value) => Number(value).toFixed(2)} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="goldPerMinute" name="Gold/Min" stroke="#06b6d4" fill="url(#goldGradient)" strokeWidth={2} />
             </AreaChart>
@@ -140,7 +140,7 @@ export function TrendCharts({ comparisonMode, data, loading, filters }: TrendCha
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
               <XAxis dataKey="match" stroke="#64748b" fontSize={10} />
-              <YAxis stroke="#64748b" fontSize={10} domain={['dataMin - 1000', 'dataMax + 1000']} />
+              <YAxis stroke="#64748b" fontSize={10} domain={['dataMin - 1000', 'dataMax + 1000']} tickFormatter={(value) => Math.round(value).toLocaleString()} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="damageToChampions" name="Damage" stroke="#06b6d4" fill="url(#damageGradient)" strokeWidth={2} />
             </AreaChart>
@@ -154,7 +154,7 @@ export function TrendCharts({ comparisonMode, data, loading, filters }: TrendCha
             <LineChart data={deathsData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
               <XAxis dataKey="match" stroke="#64748b" fontSize={10} />
-              <YAxis stroke="#64748b" fontSize={10} domain={[0, 'dataMax + 2']} />
+              <YAxis stroke="#64748b" fontSize={10} domain={[0, 'dataMax + 2']} tickFormatter={(value) => Math.round(value).toString()} />
               <Tooltip content={<CustomTooltip />} />
               <Line type="monotone" dataKey="deaths" name="Deaths" stroke="#06b6d4" strokeWidth={2} dot={{ fill: '#06b6d4', r: 3 }} />
             </LineChart>
@@ -174,7 +174,7 @@ export function TrendCharts({ comparisonMode, data, loading, filters }: TrendCha
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
               <XAxis dataKey="match" stroke="#64748b" fontSize={10} />
-              <YAxis stroke="#64748b" fontSize={10} domain={['dataMin - 5', 'dataMax + 5']} />
+              <YAxis stroke="#64748b" fontSize={10} domain={['dataMin - 5', 'dataMax + 5']} tickFormatter={(value) => Number(value).toFixed(1)} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="visionScore" name="Vision Score" stroke="#06b6d4" fill="url(#visionGradient)" strokeWidth={2} />
             </AreaChart>

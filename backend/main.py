@@ -11,6 +11,7 @@ from services.bedrock_ai import BedrockAIService
 from services.match_analyzer import MatchAnalyzer
 from services.coaching_agent import CoachingAgent
 from services.match_chat_agent import MatchChatAgent
+from services.year_recap_chat_agent import YearRecapChatAgent
 from services.timeline_aggregator import TimelineAggregator
 from services.demo_data import (
     DEMO_PLAYER,
@@ -60,6 +61,7 @@ except Exception as e:
 match_analyzer = MatchAnalyzer(riot_client, bedrock_service) if bedrock_service else None
 coaching_agent = CoachingAgent(riot_client) if riot_client else None
 match_chat_agent = MatchChatAgent()
+year_recap_chat_agent = YearRecapChatAgent()
 timeline_aggregator = TimelineAggregator()
 
 
@@ -109,6 +111,13 @@ class YearRecapHeatmapRequest(BaseModel):
 class MatchChatRequest(BaseModel):
     message: str
     context: dict
+    conversation_history: Optional[List[dict]] = None
+
+
+class YearRecapChatRequest(BaseModel):
+    message: str
+    year_recap_data: dict
+    puuid: str
     conversation_history: Optional[List[dict]] = None
 
 
@@ -308,6 +317,33 @@ async def get_year_recap_heatmap(request: YearRecapHeatmapRequest):
     except Exception as e:
         logger.error(f"Error generating heatmap: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating heatmap: {str(e)}")
+
+
+@app.post("/api/year-recap/chat")
+async def year_recap_chat(request: YearRecapChatRequest):
+    """
+    Chat with Year Recap AI assistant about yearly performance (with tool calling)
+
+    The assistant can:
+    - Answer questions about year-long achievements and milestones
+    - Fetch detailed data using tools (champion stats, role performance, etc.)
+    - Trigger UI actions to help visualize data
+    - Compare champions, roles, and time periods
+    """
+    try:
+        logger.info(f"Year recap chat request: {request.message[:50]}...")
+        response = year_recap_chat_agent.chat(
+            message=request.message,
+            year_recap_data=request.year_recap_data,
+            puuid=request.puuid,
+            conversation_history=request.conversation_history
+        )
+        logger.info(f"Year recap chat used {len(response.get('tools_used', []))} tools, "
+                   f"triggered {len(response.get('ui_actions', []))} UI actions")
+        return response
+    except Exception as e:
+        logger.error(f"Year recap chat error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error processing year recap chat: {str(e)}")
 
 
 # ============= AI COACHING AGENT ENDPOINTS =============
