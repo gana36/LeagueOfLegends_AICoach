@@ -140,50 +140,16 @@ export function Header({ filters, setFilters, comparisonMode, setComparisonMode,
 
           {/* Controls */}
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                placeholder="Search..."
-                className="pl-9 w-40 bg-slate-800/50 border-slate-700 text-slate-200"
-              />
-            </div>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="p-2 rounded-lg bg-slate-800/50 border border-slate-700 hover:bg-slate-700/50 transition-colors group relative">
-                  <Share2 className="w-5 h-5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-slate-800 border-slate-700">
-                <DropdownMenuLabel className="text-slate-200">Share Stats</DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-slate-700" />
-                <DropdownMenuItem
-                  onClick={handleCopyLink}
-                  className="text-slate-200 hover:bg-slate-700 hover:text-cyan-400 cursor-pointer focus:bg-slate-700 focus:text-cyan-400"
-                  disabled={copiedLink}
-                >
-                  {copiedLink ? (
-                    <>
-                      <Check className="w-4 h-4 mr-2" />
-                      Link Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Link2 className="w-4 h-4 mr-2" />
-                      Copy Link
-                    </>
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleDownloadImage}
-                  className="text-slate-200 hover:bg-slate-700 hover:text-cyan-400 cursor-pointer focus:bg-slate-700 focus:text-cyan-400"
-                  disabled={downloading}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  {downloading ? 'Downloading...' : 'Download Image'}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <button
+              onClick={handleDownloadImage}
+              disabled={downloading}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800/50 border border-slate-700 hover:bg-slate-700/50 hover:border-cyan-500/50 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-5 h-5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
+              <span className="text-slate-200 group-hover:text-cyan-400 transition-colors">
+                {downloading ? 'Downloading...' : 'Download Image'}
+              </span>
+            </button>
           </div>
         </div>
 

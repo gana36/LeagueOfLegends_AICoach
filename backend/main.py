@@ -2,6 +2,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
+from fastapi import UploadFile, File
+import base64
 import os
 import logging
 from dotenv import load_dotenv
@@ -13,6 +15,7 @@ from services.coaching_agent import CoachingAgent
 from services.match_chat_agent import MatchChatAgent
 from services.year_recap_chat_agent import YearRecapChatAgent
 from services.timeline_aggregator import TimelineAggregator
+from services.s3_service import S3Service
 from services.demo_data import (
     DEMO_PLAYER,
     DEMO_YEAR_RECAP,
@@ -63,6 +66,17 @@ coaching_agent = CoachingAgent(riot_client) if riot_client else None
 match_chat_agent = MatchChatAgent()
 year_recap_chat_agent = YearRecapChatAgent()
 timeline_aggregator = TimelineAggregator()
+
+# Initialize S3 service
+try:
+    s3_service = S3Service()
+    # Ensure bucket exists (creates it if needed)
+    s3_service.ensure_bucket_exists()
+    logger.info("S3 service initialized successfully")
+except Exception as e:
+    logger.warning(f"S3 service initialization failed: {e}")
+    logger.warning("File upload features will be unavailable")
+    s3_service = None
 
 
 class PlayerRequest(BaseModel):
@@ -119,6 +133,18 @@ class YearRecapChatRequest(BaseModel):
     year_recap_data: dict
     puuid: str
     conversation_history: Optional[List[dict]] = None
+
+
+class UploadImageRequest(BaseModel):
+    puuid: str
+    image_data: str  # Base64 encoded image
+    recap_type: str = "collage"  # 'collage' or 'single'
+
+
+class UploadVideoRequest(BaseModel):
+    puuid: str
+    video_data: str  # Base64 encoded video
+    file_extension: str = 'mp4'  # 'mp4' or 'webm'
 
 
 @app.get("/")
@@ -439,18 +465,94 @@ async def chat_match_analysis(request: MatchChatRequest):
     """
     try:
         logger.info(f"Match chat request: {request.message}")
-        
+
         response = await match_chat_agent.chat(
             message=request.message,
             context=request.context,
             conversation_history=request.conversation_history
         )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Match chat error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============= S3 UPLOAD ENDPOINTS =============
+
+@app.post("/api/share/upload-image")
+async def upload_recap_image(request: UploadImageRequest):
+    """
+    Upload a year recap image to S3 and return the public URL
+
+    Accepts base64-encoded image data and uploads it to S3.
+    Returns a shareable public URL.
+    """
+    if not s3_service:
+        raise HTTPException(status_code=503, detail="S3 service unavailable")
+
+    try:
+        logger.info(f"Uploading recap image for PUUID: {request.puuid[:8]}...")
+
+        # Decode base64 image data
+        # Remove the data URL prefix if present (e.g., "data:image/png;base64,")
+        image_data = request.image_data
+        if ',' in image_data:
+            image_data = image_data.split(',')[1]
+
+        image_bytes = base64.b64decode(image_data)
+
+        # Upload to S3
+        url = s3_service.upload_recap_image(
+            file_content=image_bytes,
+            puuid=request.puuid,
+            recap_type=request.recap_type
+        )
+
+        logger.info(f"Image uploaded successfully: {url}")
+        return {"url": url, "success": True}
+
+    except Exception as e:
+        logger.error(f"Error uploading image: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error uploading image: {str(e)}")
+
+
+@app.post("/api/share/upload-video")
+async def upload_recap_video(request: UploadVideoRequest):
+    """
+    Upload a year recap video to S3 and return the public URL
+
+    Accepts base64-encoded video data and uploads it to S3.
+    Returns a shareable public URL.
+    """
+    if not s3_service:
+        raise HTTPException(status_code=503, detail="S3 service unavailable")
+
+    try:
+        logger.info(f"Uploading recap video for PUUID: {request.puuid[:8]}...")
+
+        # Decode base64 video data
+        # Remove the data URL prefix if present (e.g., "data:video/mp4;base64,")
+        video_data = request.video_data
+        if ',' in video_data:
+            video_data = video_data.split(',')[1]
+
+        video_bytes = base64.b64decode(video_data)
+
+        # Upload to S3
+        url = s3_service.upload_recap_video(
+            file_content=video_bytes,
+            puuid=request.puuid,
+            file_extension=request.file_extension
+        )
+
+        logger.info(f"Video uploaded successfully: {url}")
+        return {"url": url, "success": True}
+
+    except Exception as e:
+        logger.error(f"Error uploading video: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error uploading video: {str(e)}")
 
 
 if __name__ == "__main__":
