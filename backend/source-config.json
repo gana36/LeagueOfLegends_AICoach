@@ -1,0 +1,13 @@
+{
+    "ImageRepository": {
+      "ImageIdentifier": "307946674899.dkr.ecr.us-east-1.amazonaws.com/rift-backend:latest",
+      "ImageRepositoryType": "ECR",
+      "ImageConfiguration": {
+        "Port": "8080"
+      }
+    },
+    "AutoDeploymentsEnabled": false,
+    "AuthenticationConfiguration": {
+      "AccessRoleArn": "arn:aws:iam::307946674899:role/AppRunnerECRAccessRole"
+    }
+  }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getChampionImageUrl } from '../utils/championImages';
+import { API_URL } from '../config';
 import './MatchSelector.css';
 
 const MatchSelector = ({ puuid, onMatchSelect, currentMatchId, onDropdownChange, forceClose }) => {
@@ -64,8 +65,7 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId, onDropdownChange,
       }
 
       console.log('Fetching matches for PUUID:', puuid);
-      // Fetch matches WITHOUT full data for fast loading
-      const url = `http://localhost:8000/api/player/matches/${puuid}?include_full_data=false`;
+      const url = `${API_URL}/api/player/matches/${puuid}`;
       console.log('Fetching from:', url);
 
       const response = await fetch(url);

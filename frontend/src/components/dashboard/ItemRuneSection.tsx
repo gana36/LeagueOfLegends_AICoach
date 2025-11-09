@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Zap, Shield, Swords, Heart } from 'lucide-react';
 import { Progress } from './ui/progress';
 import { useDataCache } from '../../contexts/DataCacheContext';
+import { API_URL } from '../../config';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = API_URL;
 
 const items = [
   { name: 'Infinity Edge', usage: 78, itemId: 3031, color: 'red' },
