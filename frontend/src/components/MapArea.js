@@ -133,8 +133,24 @@ const MapArea = ({
     if (playerFilter === 'solo') {
       return participantFrames.filter(p => p.participantId === mainParticipantId);
     } else if (playerFilter === 'team') {
-      return participantFrames.filter(p => p.participantId <= 5);
+      // Show main player's team (same team as main player)
+      const mainPlayerTeam = mainParticipantId <= 5 ? 'blue' : 'red';
+      if (mainPlayerTeam === 'blue') {
+        return participantFrames.filter(p => p.participantId <= 5);
+      } else {
+        return participantFrames.filter(p => p.participantId > 5);
+      }
     } else if (playerFilter === 'opponents') {
+      // Show opponents (opposite team from main player)
+      const mainPlayerTeam = mainParticipantId <= 5 ? 'blue' : 'red';
+      if (mainPlayerTeam === 'blue') {
+        return participantFrames.filter(p => p.participantId > 5);
+      } else {
+        return participantFrames.filter(p => p.participantId <= 5);
+      }
+    } else if (playerFilter === 'blueTeam') {
+      return participantFrames.filter(p => p.participantId <= 5);
+    } else if (playerFilter === 'redTeam') {
       return participantFrames.filter(p => p.participantId > 5);
     }
     return participantFrames;

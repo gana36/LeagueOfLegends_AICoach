@@ -3,8 +3,10 @@ Match Chat Agent - AI assistant for match analysis with agentic capabilities
 """
 import boto3
 import json
-from typing import Dict, List, Optional
 import logging
+import boto3
+from typing import Dict, List, Optional
+from .tool_handlers import ToolHandlers
 
 logger = logging.getLogger(__name__)
 
@@ -18,58 +20,165 @@ class MatchChatAgent:
         self.model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
         
         self.tools = [
+            # Navigation Tools
             {
-                "name": "find_event",
-                "description": "Find specific events in the match like first blood, dragons, barons, or towers",
+                "name": "navigate_to_timestamp",
+                "description": "Jump to a specific time in the match timeline. Use when user explicitly asks to go to a specific time or event.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "minutes": {
+                            "type": "number",
+                            "description": "Time in minutes to navigate to"
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "Brief description of what's at this timestamp (e.g., 'Second dragon kill')"
+                        }
+                    },
+                    "required": ["minutes"]
+                }
+            },
+            {
+                "name": "navigate_to_event",
+                "description": "Jump to a specific event by type and index. Use when user asks to see a numbered event (e.g., 'second dragon', 'first baron').",
                 "input_schema": {
                     "type": "object",
                     "properties": {
                         "event_type": {
                             "type": "string",
-                            "enum": [
-                                "first_blood",
-                                "first_dragon",
-                                "first_baron",
-                                "first_tower",
-                                "dragon_history",
-                                "baron_history",
-                                "tower_history",
-                                "kill_history"
-                            ],
-                            "description": "Type of event to find"
+                            "enum": ["dragon", "baron", "tower", "herald", "kill"],
+                            "description": "Type of event"
                         },
                         "index": {
-                            "type": "integer",
-                            "description": "Optional 1-based index of the event to highlight"
-                        },
-                        "after_frame_index": {
                             "type": "number",
-                            "description": "Look for the first event that happened after this frame index"
+                            "description": "Which occurrence (0 for first, 1 for second, etc.)"
+                        }
+                    },
+                    "required": ["event_type", "index"]
+                }
+            },
+            
+            # Display Tools
+            {
+                "name": "show_players",
+                "description": "Display a list of players with their stats. Use when user wants to see player information.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "filter": {
+                            "type": "string",
+                            "enum": ["all", "my_team", "enemy_team", "blue_team", "red_team"],
+                            "description": "Which players to show"
                         },
-                        "after_time": {
-                            "type": "number",
-                            "description": "Look for the first event that happened after this in-game minute"
+                        "sort_by": {
+                            "type": "string",
+                            "enum": ["kda", "kills", "damage", "gold"],
+                            "description": "How to sort the player list"
+                        }
+                    },
+                    "required": ["filter"]
+                }
+            },
+            {
+                "name": "show_event_timeline",
+                "description": "Display a full timeline of specific events. Use when user wants to see all occurrences of an event type.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "event_type": {
+                            "type": "string",
+                            "enum": ["dragons", "barons", "towers", "kills", "deaths", "objectives"],
+                            "description": "Type of events to show"
+                        },
+                        "filter": {
+                            "type": "string",
+                            "enum": ["all", "my_team", "enemy_team"],
+                            "description": "Optional filter for events"
                         }
                     },
                     "required": ["event_type"]
                 }
             },
             {
-                "name": "navigate_timeline",
-                "description": "Jump to a specific time or event in the match timeline",
+                "name": "toggle_map_filter",
+                "description": "Toggle visibility of player groups on the map. Use when user wants to show/hide specific teams or players on the map.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "target": {
+                        "filter": {
                             "type": "string",
-                            "description": "What to navigate to (e.g., 'first dragon', 'first blood', '15 minutes')"
+                            "enum": ["my_team", "enemy_team", "all", "blue_team", "red_team"],
+                            "description": "Which player group to toggle"
                         },
-                        "frame_index": {
-                            "type": "integer",
-                            "description": "Specific frame index to jump to"
+                        "show": {
+                            "type": "boolean",
+                            "description": "Whether to show (true) or hide (false) the group. Defaults to true."
                         }
                     },
-                    "required": ["target"]
+                    "required": ["filter"]
+                }
+            },
+            
+            # Card View Tools
+            {
+                "name": "open_dragon_card",
+                "description": "Open a detailed card view for a specific dragon kill. Use when user wants detailed info about a dragon.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "index": {
+                            "type": "number",
+                            "description": "Which dragon (0 for first, 1 for second, etc.)"
+                        }
+                    },
+                    "required": ["index"]
+                }
+            },
+            {
+                "name": "open_kill_card",
+                "description": "Open a detailed card view for a specific champion kill. Use when user wants details about a kill.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "index": {
+                            "type": "number",
+                            "description": "Which kill event (index in kill history)"
+                        }
+                    },
+                    "required": ["index"]
+                }
+            },
+            {
+                "name": "open_player_card",
+                "description": "Open a detailed card view for a specific player. Use when user wants full player details. You can identify player by name from context.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "player_id": {
+                            "type": "number",
+                            "description": "Player participant ID (optional if player_name is provided)"
+                        },
+                        "player_name": {
+                            "type": "string",
+                            "description": "Player name (optional if player_id is provided)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "open_frame_events_card",
+                "description": "Open a card showing all events that occurred at the current frame/timestamp. Use when user asks 'what happened here' or 'show me this moment'.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "frame_index": {
+                            "type": "number",
+                            "description": "Optional: specific frame to show events for (defaults to current frame)"
+                        }
+                    },
+                    "required": []
                 }
             }
         ]
@@ -153,7 +262,7 @@ class MatchChatAgent:
             
             # Extract response and actions
             response_text = ""
-            action = None
+            actions = []
             tool_uses = []
             assistant_content = []
             
@@ -162,13 +271,31 @@ class MatchChatAgent:
                     response_text += content['text']
                     assistant_content.append(content)
                 elif content.get('type') == 'tool_use':
-                    action = self._process_tool_call(content, context)
+                    tool_action = ToolHandlers.process_tool_call(
+                        content['name'],
+                        content.get('input', {}),
+                        context
+                    )
+                    if tool_action:
+                        actions.append(tool_action)
                     tool_uses.append(content)
                     assistant_content.append(content)
             
-            # If tool was used, override or enhance response with our summary
-            if action:
-                response_text = self._generate_action_description(action, context)
+            # Handle single or multiple actions
+            action = None
+            if len(actions) == 1:
+                action = actions[0]
+                if action.get('description'):
+                    response_text = action['description']
+            elif len(actions) > 1:
+                # Multiple actions - create a multi_action wrapper
+                action = {
+                    'type': 'multi_action',
+                    'actions': actions,
+                    'requiresPermission': any(a.get('requiresPermission') for a in actions),
+                    'description': ' '.join(a.get('description', '') for a in actions if a.get('description'))
+                }
+                response_text = action['description']
             
             # Build proper conversation history
             # Just add the assistant message - tool_result will be added with next user message
@@ -221,15 +348,95 @@ Event summary:
 - Recent events near timeline: {events.get('recent')}
 
 Instructions:
-1. Answer questions about players, teams, objectives, timeline swings, and strategy.
-2. Use tools to gather data or prepare UI actions:
-   - find_event: any objective (dragon, baron, tower), combat spike, or notable moment.
-   - navigate_timeline: jump to frames for highlights.
-3. Provide analysis that references stats and trends from context.
-4. If uncertain, ask follow-up questions rather than guessing.
+1. Answer questions about players, teams, objectives, timeline swings, and strategy directly from context.
+2. Use tools ONLY for explicit actions:
+   - navigate_to_timestamp / navigate_to_event: When user asks to "go to" or "show me" a specific time/event
+   - show_players / show_event_timeline: When user wants to see lists or full timelines
+   - open_*_card: When user wants detailed info about a specific event/player
+3. Format responses with markdown for clarity (bold player names, use lists for rankings, etc.).
+4. Maintain conversational context—track what events or players were discussed in previous messages and reference them in follow-ups.
+5. Be conversational and natural—don't mention tools or context sources in your responses.
 
-Always explain actions clearly and suggest helpful follow-up insights."""
-    
+Quick Facts (pre-computed for fast reference):
+{self._format_quick_facts(context.get('quickFacts', {}))}
+
+**Critical Instructions:**
+1. ALWAYS answer stat/comparison questions directly from context—do NOT use tools for these.
+
+2. **YOU MUST USE TOOLS** for these explicit actions (NEVER say you can't do these):
+   - Navigation: "take me to X", "go to X", "jump to X" → navigate_to_timestamp or navigate_to_event
+   - Show players: "show my team", "list players" → show_players
+   - Map visibility: "show them on map", "display on map" → toggle_map_filter
+   - Open cards: "open X card", "show X details" → open_player_card, open_dragon_card, open_kill_card, open_frame_events_card
+   - Event timeline: "show all dragons", "list kills" → show_event_timeline
+
+3. **Multi-action requests** - Use multiple tools when needed:
+   - "show all players at 15:00" → navigate_to_timestamp(15) + show_players(filter='all')
+   - "go to second dragon and open its card" → navigate_to_event(dragon, 1) + open_dragon_card(1)
+
+4. **NEVER say** "I don't have access to", "I can't", or "unfortunately" when asked to use a tool. Just use the tool.
+
+5. Be concise and conversational. Use markdown formatting (bold, lists, etc.).
+
+6. Format numbers clearly (e.g., "16/4/12" for KDA, "42,186 damage").
+
+7. Pay attention to conversation history for follow-up questions (e.g., "open his card" → identify player from previous message).
+
+8. For objective events, include killer and assister names when available."""
+
+    def _format_quick_facts(self, quick_facts: Dict) -> str:
+        """Format quick facts into readable text for the system prompt."""
+        if not quick_facts:
+            return "No quick facts available."
+
+        lines = []
+        team_leaders = quick_facts.get('teamLeaders', {})
+        objectives = quick_facts.get('objectives', {})
+        comparison = quick_facts.get('teamComparison', {})
+
+        # Blue team leaders
+        blue = team_leaders.get('blue', {})
+        if blue.get('highestKDA'):
+            lines.append(f"Blue Team Highest KDA: {blue['highestKDA']['player']} - {blue['highestKDA']['value']}")
+        if blue.get('mostKills'):
+            lines.append(f"Blue Team Most Kills: {blue['mostKills']['player']} - {blue['mostKills']['value']}")
+        if blue.get('mostDamage'):
+            lines.append(f"Blue Team Most Damage: {blue['mostDamage']['player']} - {blue['mostDamage']['value']}")
+
+        lines.append("")
+
+        # Red team leaders
+        red = team_leaders.get('red', {})
+        if red.get('highestKDA'):
+            lines.append(f"Red Team Highest KDA: {red['highestKDA']['player']} - {red['highestKDA']['value']}")
+        if red.get('mostKills'):
+            lines.append(f"Red Team Most Kills: {red['mostKills']['player']} - {red['mostKills']['value']}")
+        if red.get('mostDamage'):
+            lines.append(f"Red Team Most Damage: {red['mostDamage']['player']} - {red['mostDamage']['value']}")
+
+        lines.append("")
+
+        # Objectives
+        if objectives.get('dragons'):
+            d = objectives['dragons']
+            lines.append(f"Dragons: {d.get('total', 0)} total (Blue: {d.get('blueTeam', 0)}, Red: {d.get('redTeam', 0)}) - First: {d.get('first', 'None')}")
+        if objectives.get('barons'):
+            b = objectives['barons']
+            lines.append(f"Barons: {b.get('total', 0)} total (Blue: {b.get('blueTeam', 0)}, Red: {b.get('redTeam', 0)}) - First: {b.get('first', 'None')}")
+        if objectives.get('towers'):
+            t = objectives['towers']
+            lines.append(f"Towers: {t.get('total', 0)} total (Blue: {t.get('blueTeam', 0)}, Red: {t.get('redTeam', 0)}) - First: {t.get('first', 'None')}")
+
+        lines.append("")
+
+        # Team comparison
+        if comparison:
+            lines.append(f"Team Kills: {comparison.get('kills', 'N/A')}")
+            lines.append(f"Team Gold: {comparison.get('gold', 'N/A')}")
+            lines.append(f"Team Damage: {comparison.get('damage', 'N/A')}")
+
+        return "\n".join(lines)
+
     def _process_tool_call(self, tool_call: Dict, context: Dict) -> Optional[Dict]:
         """Process tool calls and return action with multiple steps"""
         tool_name = tool_call['name']
