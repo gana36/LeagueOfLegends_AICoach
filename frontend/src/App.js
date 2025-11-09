@@ -10,11 +10,12 @@ import PerformanceAnalyticsPage from './components/PerformanceAnalyticsPage';
 import PlayerSearch from './components/PlayerSearch';
 import MatchSelector from './components/MatchSelector';
 import { DataCacheProvider } from './contexts/DataCacheContext';
+import { API_URL } from './config';
 const EMPTY_MATCH_DATA = { info: { frames: [] } };
 const EMPTY_MATCH_SUMMARY = { info: { participants: [] } };
 
 // Configuration
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = API_URL;
 const SNEAKY_PUUID = 'BQD2G_OKDrt_YjF9A5qJvfzClUx0Fe2fPzQm8cqLQWnATfQmzBta-JAW3ZOGABb07RmYrpJ_AXr-cg';
 
 function App() {

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { getChampionImageUrl } from '../utils/championImages';
 import { MatchContextExtractor } from '../utils/matchContextExtractor';
+import { API_URL } from '../config';
 
 const CHAMPION_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/12.4.1/img/champion';
 
@@ -285,7 +286,7 @@ const RightSidebar = ({
       const context = contextExtractor.buildChatContext(currentFrameIndex, selectedPlayer);
 
       // Call backend with conversation history
-      const response = await fetch('http://localhost:8000/api/chat/match-analysis', {
+      const response = await fetch(`${API_URL}/api/chat/match-analysis`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

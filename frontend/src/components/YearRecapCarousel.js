@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { API_URL } from '../config';
 
 const YearRecapCarousel = ({ cachedNarrativeData }) => {
   const [narrativeData, setNarrativeData] = useState(cachedNarrativeData || null);
@@ -185,7 +186,7 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
       const playerName = (narrativeData.player_name || narrativeData.game_name || 'player').replace(/[#\/\\]/g, '-');
 
       // Upload to S3
-      const response = await fetch('http://localhost:8000/api/share/upload-image', {
+      const response = await fetch(`${API_URL}/api/share/upload-image`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -388,7 +389,7 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
       const playerName = (narrativeData.player_name || narrativeData.game_name || 'player').replace(/[#\/\\]/g, '-');
 
       // Upload to S3
-      const response = await fetch('http://localhost:8000/api/share/upload-video', {
+      const response = await fetch(`${API_URL}/api/share/upload-video`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

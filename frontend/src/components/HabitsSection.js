@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../config';
 
 const HabitsSection = ({ puuid, rank = "GOLD", timeRange = null }) => {
   const [habitsData, setHabitsData] = useState(null);
@@ -17,7 +18,7 @@ const HabitsSection = ({ puuid, rank = "GOLD", timeRange = null }) => {
         setIsLoading(true);
         setError(null);
 
-        const response = await fetch('http://localhost:8000/api/analytics/habits', {
+        const response = await fetch(`${API_URL}/api/analytics/habits`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_URL } from '../config';
 import './PlayerSearch.css';
 
 interface PlayerSearchProps {
@@ -30,7 +31,7 @@ const PlayerSearch: React.FC<PlayerSearchProps> = ({ onPlayerFound }) => {
     try {
       // Step 1: Fetch and upload player data
       setProgress('Fetching data from Riot API...');
-      const response = await fetch('http://localhost:8000/api/player/fetch', {
+      const response = await fetch(`${API_URL}/api/player/fetch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -61,7 +62,7 @@ const PlayerSearch: React.FC<PlayerSearchProps> = ({ onPlayerFound }) => {
       setProgress('Loading player data...');
       const puuid = result.data.puuid;
 
-      const playerDataResponse = await fetch(`http://localhost:8000/api/player/data/${puuid}`);
+      const playerDataResponse = await fetch(`${API_URL}/api/player/data/${puuid}`);
 
       if (!playerDataResponse.ok) {
         throw new Error('Failed to load player data');

@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { API_URL } from '../config';
 
 const DataCacheContext = createContext();
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = API_URL;
 
 // Cache TTL: 24 hours for static data
 const CACHE_TTL = 24 * 60 * 60 * 1000;

@@ -7,8 +7,9 @@ import { ChampionGrid } from './dashboard/ChampionGrid';
 import { ObjectivePanel } from './dashboard/ObjectivePanel';
 import { VisionPanel } from './dashboard/VisionPanel';
 import { ItemRuneSection } from './dashboard/ItemRuneSection';
+import { API_URL } from '../config';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = API_URL;
 
 interface PerformanceAnalyticsPageProps {
   puuid?: string;

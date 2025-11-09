@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import HabitsSection from './HabitsSection';
 import YearRecapCarousel from './YearRecapCarousel';
+import { API_URL } from '../config';
 
 const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narrativeData, narrativeLoading, narrativeError, onFetchNarrative }) => {
   const [mapDimensions, setMapDimensions] = useState({ width: 0, height: 0 });
@@ -261,7 +262,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
 
     try {
       // Call year recap chat endpoint with puuid
-      const response = await fetch('http://localhost:8000/api/year-recap/chat', {
+      const response = await fetch(`${API_URL}/api/year-recap/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -392,7 +393,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
           <div className="text-white text-xl font-semibold mb-2">Failed to Load Year Recap</div>
           <div className="text-text-secondary text-sm mb-4">{error}</div>
           <div className="text-text-secondary text-xs">
-            Make sure the backend server is running at http://localhost:8000
+            Make sure the backend server is running at {API_URL}
           </div>
         </div>
       </div>
