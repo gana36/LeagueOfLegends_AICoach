@@ -8,6 +8,14 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
   const [touchStartX, setTouchStartX] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [uploadingCollage, setUploadingCollage] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [shareUrl, setShareUrl] = useState(null);
+  const [shareError, setShareError] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState('');
+  const [isCapturing, setIsCapturing] = useState(false);
+  const cardRefs = useRef([]);
 
   // Use cached data if provided
   useEffect(() => {
@@ -45,7 +53,7 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
     }
   };
 
-  const handleDownloadImage = async () => {
+  const handleDownloadCurrentCard = async () => {
     try {
       const html2canvas = (await import('html2canvas')).default;
 
@@ -54,14 +62,21 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
           backgroundColor: '#0a1428',
           useCORS: true,
           logging: false,
-          scale: 2
+          scale: 2,
+          allowTaint: true,
+          foreignObjectRendering: false,
+          imageTimeout: 0,
+          removeContainer: true,
+          ignoreElements: (element) => {
+            return element.hasAttribute('data-html2canvas-ignore');
+          }
         });
 
         canvas.toBlob((blob) => {
           if (blob) {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            link.download = `year-recap-2024-${Date.now()}.png`;
+            link.download = `year-recap-card-${currentCardIndex + 1}-${Date.now()}.png`;
             link.href = url;
             link.click();
             URL.revokeObjectURL(url);
@@ -70,7 +85,356 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
       }
     } catch (err) {
       console.error('Failed to download image:', err);
-      alert('Failed to download image. Please try again.');
+      alert('Failed to download current card. Please try again.');
+    }
+  };
+
+  const handleGenerateCollage = async () => {
+    try {
+      setUploadingCollage(true);
+      setShareError(null);
+      setShareUrl(null); // Clear previous URL
+      setUploadProgress(0);
+      setProgressMessage('Preparing to capture cards...');
+
+      // Hide modal while capturing
+      setShowShareModal(false);
+
+      const html2canvas = (await import('html2canvas')).default;
+
+      if (!narrativeData || !narrativeData.cards) {
+        throw new Error('No cards available');
+      }
+
+      // Store current card index
+      const originalIndex = currentCardIndex;
+
+      // Array to store canvases for each card
+      const cardCanvases = [];
+
+      // Wait a moment for modal to close
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Enable capture mode (simplifies rendering)
+      setIsCapturing(true);
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Capture each card
+      for (let i = 0; i < narrativeData.cards.length; i++) {
+        const progress = Math.floor((i / narrativeData.cards.length) * 50);
+        setUploadProgress(progress);
+        setProgressMessage(`Capturing card ${i + 1} of ${narrativeData.cards.length}...`);
+
+        // Navigate to the card
+        setCurrentCardIndex(i);
+
+        // Wait for render
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Capture the card
+        const canvas = await html2canvas(carouselRef.current, {
+          backgroundColor: '#0a1428',
+          useCORS: true,
+          logging: false,
+          scale: 2,
+          allowTaint: true,
+          foreignObjectRendering: false,
+          imageTimeout: 0,
+          removeContainer: true,
+          ignoreElements: (element) => {
+            return element.hasAttribute('data-html2canvas-ignore');
+          }
+        });
+
+        cardCanvases.push(canvas);
+      }
+
+      // Disable capture mode
+      setIsCapturing(false);
+
+      // Restore original card
+      setCurrentCardIndex(originalIndex);
+
+      setProgressMessage('Creating collage...');
+      setUploadProgress(55);
+
+      // Create vertical collage
+      const cardWidth = cardCanvases[0].width;
+      const cardHeight = cardCanvases[0].height;
+      const collageCanvas = document.createElement('canvas');
+      collageCanvas.width = cardWidth;
+      collageCanvas.height = cardHeight * cardCanvases.length;
+      const ctx = collageCanvas.getContext('2d');
+
+      // Draw all cards vertically
+      cardCanvases.forEach((canvas, index) => {
+        ctx.drawImage(canvas, 0, cardHeight * index);
+      });
+
+      setUploadProgress(60);
+      setProgressMessage('Preparing image...');
+
+      // Convert to base64
+      const collageDataUrl = collageCanvas.toDataURL('image/png');
+
+      setUploadProgress(70);
+      setProgressMessage('Uploading to cloud...');
+
+      // Use PUUID for S3 path (no special characters), player name for download filename
+      const puuid = narrativeData.puuid || 'player';
+      const playerName = (narrativeData.player_name || narrativeData.game_name || 'player').replace(/[#\/\\]/g, '-');
+
+      // Upload to S3
+      const response = await fetch('http://localhost:8000/api/share/upload-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          puuid: puuid,
+          image_data: collageDataUrl,
+          recap_type: 'collage'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload image to S3');
+      }
+
+      const data = await response.json();
+      setUploadProgress(100);
+      setProgressMessage('Upload complete!');
+      setShareUrl(data.url);
+
+      // Also trigger download with safe filename
+      const link = document.createElement('a');
+      link.download = `year-recap-collage-${playerName}-${Date.now()}.png`;
+      link.href = collageDataUrl;
+      link.click();
+
+      // Reopen modal to show the result
+      setTimeout(() => {
+        setShowShareModal(true);
+      }, 500);
+
+      // Clear progress after a short delay to show 100%
+      setTimeout(() => {
+        setUploadProgress(0);
+        setProgressMessage('');
+      }, 2000);
+
+    } catch (err) {
+      console.error('Failed to generate collage:', err);
+      setShareError('Failed to generate collage. Please try again.');
+      setShowShareModal(true); // Reopen modal to show error
+    } finally {
+      setIsCapturing(false); // Always disable capture mode
+      setUploadingCollage(false);
+    }
+  };
+
+  const handleGenerateVideo = async () => {
+    try {
+      setUploadingVideo(true);
+      setShareError(null);
+      setShareUrl(null); // Clear previous URL
+      setUploadProgress(0);
+      setProgressMessage('Preparing to record video...');
+
+      // Hide modal while capturing
+      setShowShareModal(false);
+
+      // Check for MediaRecorder support
+      if (!window.MediaRecorder) {
+        throw new Error('Video recording is not supported in this browser. Please use Chrome, Firefox, or Edge.');
+      }
+
+      // Wait a moment for modal to close
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Enable capture mode (simplifies rendering)
+      setIsCapturing(true);
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      setProgressMessage('Starting video recording...');
+      const originalIndex = currentCardIndex;
+
+      // Create a hidden container for recording
+      const recordingContainer = document.createElement('div');
+      recordingContainer.style.position = 'fixed';
+      recordingContainer.style.top = '0';
+      recordingContainer.style.left = '0';
+      recordingContainer.style.width = '1920px';
+      recordingContainer.style.height = '1080px';
+      recordingContainer.style.zIndex = '-9999';
+      document.body.appendChild(recordingContainer);
+
+      // Use canvas stream for recording
+      const canvas = document.createElement('canvas');
+      canvas.width = 1920;
+      canvas.height = 1080;
+      const ctx = canvas.getContext('2d');
+
+      const stream = canvas.captureStream(30); // 30 FPS
+
+      // Try to use MP4 first for better compatibility, fall back to WebM
+      let mimeType = 'video/webm;codecs=vp9'; // Default fallback
+      let fileExtension = 'webm';
+
+      // Check MP4 support (best for social media)
+      if (MediaRecorder.isTypeSupported('video/mp4')) {
+        mimeType = 'video/mp4';
+        fileExtension = 'mp4';
+      } else if (MediaRecorder.isTypeSupported('video/mp4;codecs=h264')) {
+        mimeType = 'video/mp4;codecs=h264';
+        fileExtension = 'mp4';
+      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
+        mimeType = 'video/webm;codecs=h264';
+        fileExtension = 'webm';
+      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+        mimeType = 'video/webm;codecs=vp9';
+        fileExtension = 'webm';
+      } else if (MediaRecorder.isTypeSupported('video/webm')) {
+        mimeType = 'video/webm';
+        fileExtension = 'webm';
+      }
+
+      console.log(`Recording with MIME type: ${mimeType}`);
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: mimeType,
+        videoBitsPerSecond: 5000000 // 5 Mbps
+      });
+
+      const chunks = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      mediaRecorder.start();
+      setUploadProgress(10);
+
+      const html2canvas = (await import('html2canvas')).default;
+
+      // Record each card for 2 seconds
+      const cardDuration = 2000; // 2 seconds per card
+      const totalCards = narrativeData.cards.length;
+
+      for (let i = 0; i < totalCards; i++) {
+        const progress = 10 + Math.floor((i / totalCards) * 60);
+        setUploadProgress(progress);
+        setProgressMessage(`Recording card ${i + 1} of ${totalCards}...`);
+        setCurrentCardIndex(i);
+        await new Promise(resolve => setTimeout(resolve, 300)); // Wait for transition
+
+        const startTime = Date.now();
+        while (Date.now() - startTime < cardDuration) {
+          const cardCanvas = await html2canvas(carouselRef.current, {
+            backgroundColor: '#0a1428',
+            useCORS: true,
+            logging: false,
+            scale: 2,
+            allowTaint: true,
+            foreignObjectRendering: false,
+            imageTimeout: 0,
+            removeContainer: true,
+            ignoreElements: (element) => {
+              return element.hasAttribute('data-html2canvas-ignore');
+            }
+          });
+
+          ctx.drawImage(cardCanvas, 0, 0, 1920, 1080);
+          await new Promise(resolve => setTimeout(resolve, 33)); // ~30 FPS
+        }
+      }
+
+      setUploadProgress(75);
+      setProgressMessage('Finalizing recording...');
+
+      // Stop recording
+      await new Promise((resolve) => {
+        mediaRecorder.onstop = resolve;
+        mediaRecorder.stop();
+      });
+
+      // Disable capture mode
+      setIsCapturing(false);
+
+      // Restore original card
+      setCurrentCardIndex(originalIndex);
+      document.body.removeChild(recordingContainer);
+
+      setUploadProgress(80);
+      setProgressMessage('Processing video...');
+
+      // Create blob from chunks with the correct MIME type
+      const videoBlob = new Blob(chunks, { type: mimeType });
+
+      // Convert to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve) => {
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(videoBlob);
+      });
+
+      const videoDataUrl = await base64Promise;
+      setUploadProgress(90);
+      setProgressMessage('Uploading to cloud...');
+
+      // Use PUUID for S3 path (no special characters), player name for download filename
+      const puuid = narrativeData.puuid || 'player';
+      const playerName = (narrativeData.player_name || narrativeData.game_name || 'player').replace(/[#\/\\]/g, '-');
+
+      // Upload to S3
+      const response = await fetch('http://localhost:8000/api/share/upload-video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          puuid: puuid,
+          video_data: videoDataUrl,
+          file_extension: fileExtension
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload video to S3');
+      }
+
+      const data = await response.json();
+      setUploadProgress(100);
+      setProgressMessage('Upload complete!');
+      setShareUrl(data.url);
+
+      // Also trigger download with safe filename
+      const url = URL.createObjectURL(videoBlob);
+      const link = document.createElement('a');
+      link.download = `year-recap-video-${playerName}-${Date.now()}.${fileExtension}`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      // Reopen modal to show the result
+      setTimeout(() => {
+        setShowShareModal(true);
+      }, 500);
+
+      // Clear progress after a short delay to show 100%
+      setTimeout(() => {
+        setUploadProgress(0);
+        setProgressMessage('');
+      }, 2000);
+
+    } catch (err) {
+      console.error('Failed to generate video:', err);
+      setShareError(err.message || 'Failed to generate video. Please try again.');
+      setShowShareModal(true); // Reopen modal to show error
+    } finally {
+      setIsCapturing(false); // Always disable capture mode
+      setUploadingVideo(false);
     }
   };
 
@@ -116,14 +480,34 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
   const progress = ((currentCardIndex + 1) / narrativeData.cards.length) * 100;
 
   return (
-    <div
-      className="relative min-h-screen overflow-hidden"
-      ref={carouselRef}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* Dynamic Background */}
-      <div className={`absolute inset-0 transition-all duration-1000 ${getThemeBackground(currentCard.theme)}`}>
+    <>
+      {/* Capture Mode Styles - Simplifies rendering for better image quality */}
+      {isCapturing && (
+        <style>{`
+          .capturing-mode * {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+          }
+          .capturing-mode .backdrop-blur-lg,
+          .capturing-mode .backdrop-blur-sm,
+          .capturing-mode .backdrop-blur-md {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            background-color: rgba(10, 20, 40, 0.9) !important;
+          }
+          .capturing-mode .blur-\\[150px\\] {
+            filter: blur(100px) !important;
+          }
+        `}</style>
+      )}
+      <div
+        className={`relative min-h-screen overflow-hidden ${isCapturing ? 'capturing-mode' : ''}`}
+        ref={carouselRef}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Dynamic Background */}
+        <div className={`absolute inset-0 transition-all duration-1000 ${getThemeBackground(currentCard.theme)}`}>
         <HextechPattern />
         {/* Glowing orbs for atmosphere */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#C89B3C] rounded-full blur-[150px] opacity-10 animate-pulse"></div>
@@ -230,10 +614,47 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
         </div>
       )}
 
+      {/* Floating Progress Toast - Positioned outside capture area */}
+      {(uploadingCollage || uploadingVideo) && (
+        <div
+          className="fixed bottom-8 right-8 z-[9999] bg-gradient-to-br from-[#0a1428] to-[#1b263b] border-2 border-[#C89B3C] rounded-lg p-6 shadow-[0_0_30px_rgba(200,155,60,0.5)] max-w-sm animate-fade-in"
+          data-html2canvas-ignore="true"
+        >
+          <div className="flex items-center gap-4 mb-3">
+            <div className="w-12 h-12 rounded-full border-4 border-[#C89B3C]/30 border-t-[#C89B3C] animate-spin"></div>
+            <div className="flex-1">
+              <h3 className="text-white font-black text-lg uppercase tracking-wide">
+                {uploadingCollage ? 'Creating Collage' : 'Recording Video'}
+              </h3>
+              <p className="text-[#C89B3C] text-sm font-semibold mt-1">
+                {progressMessage}
+              </p>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="relative">
+            <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#C89B3C] to-[#0397AB] transition-all duration-300 rounded-full"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+            <div className="text-right mt-2">
+              <span className="text-white font-bold text-sm">{uploadProgress}%</span>
+            </div>
+          </div>
+
+          <p className="text-white/60 text-xs mt-3 text-center font-medium">
+            Please don't close this tab
+          </p>
+        </div>
+      )}
+
       {/* Share Modal */}
       {showShareModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowShareModal(false)}>
-          <div className="relative bg-gradient-to-b from-[#0a1428] to-[#1b263b] rounded-lg p-8 max-w-md w-full border-2 border-[#C89B3C] shadow-[0_0_30px_rgba(200,155,60,0.3)]" onClick={(e) => e.stopPropagation()}>
+          <div className="relative bg-gradient-to-b from-[#0a1428] to-[#1b263b] rounded-lg p-8 max-w-2xl w-full border-2 border-[#C89B3C] shadow-[0_0_30px_rgba(200,155,60,0.3)]" onClick={(e) => e.stopPropagation()}>
             {/* Close button */}
             <button
               onClick={() => setShowShareModal(false)}
@@ -248,48 +669,104 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
               Share Your Recap
             </h2>
 
-            <div className="space-y-4">
-              {/* Copy Link Button */}
-              <button
-                onClick={handleCopyLink}
-                className="w-full bg-gradient-to-r from-[#C89B3C] to-[#9d7c30] hover:from-[#d4a64a] hover:to-[#C89B3C] text-[#0a1428] font-black py-4 px-6 rounded-lg transition-all transform hover:scale-105 shadow-lg border-2 border-[#C89B3C] flex items-center justify-center gap-3 uppercase tracking-wider"
-              >
-                {copySuccess ? (
-                  <>
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span>Link Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                    </svg>
-                    <span>Copy Link</span>
-                  </>
-                )}
-              </button>
+            {/* Share URL Display */}
+            {shareUrl && (
+              <div className="mb-6 p-4 bg-[#C89B3C]/10 border border-[#C89B3C]/30 rounded-lg">
+                <p className="text-[#C89B3C] text-sm font-bold mb-2 uppercase tracking-wide">Shareable Link Created!</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={shareUrl}
+                    readOnly
+                    className="flex-1 bg-black/30 text-white px-3 py-2 rounded text-sm font-mono"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(shareUrl);
+                      setCopySuccess(true);
+                      setTimeout(() => setCopySuccess(false), 2000);
+                    }}
+                    className="bg-[#C89B3C] hover:bg-[#d4a64a] text-black px-4 py-2 rounded font-bold transition-colors"
+                  >
+                    {copySuccess ? '✓ Copied!' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            )}
 
-              {/* Download Image Button */}
+            {/* Error Display */}
+            {shareError && (
+              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <p className="text-red-400 text-sm font-semibold">{shareError}</p>
+              </div>
+            )}
+
+            {/* Progress Bar */}
+            {(uploadingCollage || uploadingVideo) && (
+              <div className="mb-6">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-white/80 font-semibold">
+                    {uploadingCollage ? 'Generating Collage...' : 'Recording Video...'}
+                  </span>
+                  <span className="text-[#C89B3C] font-bold">{uploadProgress}%</span>
+                </div>
+                <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#C89B3C] to-[#0397AB] transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {/* Generate Collage Button */}
               <button
-                onClick={handleDownloadImage}
-                className="w-full bg-gradient-to-r from-[#0397AB] to-[#026e7a] hover:from-[#04a5b8] hover:to-[#0397AB] text-white font-black py-4 px-6 rounded-lg transition-all transform hover:scale-105 shadow-lg border-2 border-[#0397AB] flex items-center justify-center gap-3 uppercase tracking-wider"
+                onClick={handleGenerateCollage}
+                disabled={uploadingCollage || uploadingVideo}
+                className={`w-full font-black py-4 px-6 rounded-lg transition-all transform shadow-lg border-2 flex items-center justify-center gap-3 uppercase tracking-wider ${
+                  uploadingCollage || uploadingVideo
+                    ? 'bg-gray-700 border-gray-600 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-[#C89B3C] to-[#9d7c30] hover:from-[#d4a64a] hover:to-[#C89B3C] text-[#0a1428] border-[#C89B3C] hover:scale-105'
+                }`}
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span>Download Image</span>
+                <div className="text-left">
+                  <div className="text-sm">All Cards Collage</div>
+                  <div className="text-xs opacity-70">Perfect for Instagram/Discord</div>
+                </div>
               </button>
 
-              <p className="text-white/60 text-sm text-center mt-6 font-semibold">
+              {/* Generate Video Button */}
+              <button
+                onClick={handleGenerateVideo}
+                disabled={uploadingCollage || uploadingVideo}
+                className={`w-full font-black py-4 px-6 rounded-lg transition-all transform shadow-lg border-2 flex items-center justify-center gap-3 uppercase tracking-wider ${
+                  uploadingCollage || uploadingVideo
+                    ? 'bg-gray-700 border-gray-600 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-[#0397AB] to-[#026e7a] hover:from-[#04a5b8] hover:to-[#0397AB] text-white border-[#0397AB] hover:scale-105'
+                }`}
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <div className="text-left">
+                  <div className="text-sm">Animated Video</div>
+                  <div className="text-xs opacity-70">Shows animations & transitions</div>
+                </div>
+              </button>
+
+              <p className="text-white/60 text-sm text-center mt-4 font-semibold">
                 Perfect for sharing on Discord, Twitter, or anywhere! 🎮
               </p>
             </div>
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
