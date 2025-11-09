@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import HabitsSection from './HabitsSection';
 import YearRecapCarousel from './YearRecapCarousel';
 
-const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error }) => {
+const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narrativeData, narrativeLoading, narrativeError, onFetchNarrative }) => {
   const [mapDimensions, setMapDimensions] = useState({ width: 0, height: 0 });
   const [mapAspect, setMapAspect] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState('deaths');
@@ -10,6 +10,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error }) => 
   const [selectedPoint, setSelectedPoint] = useState(null);
   const [timelineMode, setTimelineMode] = useState('total'); // 'total' or 'average'
   const [showNarrativeCarousel, setShowNarrativeCarousel] = useState(false);
+  const [carouselKey, setCarouselKey] = useState(0); // Key to force carousel re-render
   const [currentMinute, setCurrentMinute] = useState(null); // null = show all data, number = show up to that minute
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -353,6 +354,20 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error }) => 
     }
   };
 
+  // Handle narrative button click
+  const handleNarrativeClick = async () => {
+    if (narrativeData) {
+      // Already cached, just show carousel
+      setShowNarrativeCarousel(true);
+      setCarouselKey(prev => prev + 1);
+    } else {
+      // Fetch narrative data and show carousel when ready
+      await onFetchNarrative();
+      setShowNarrativeCarousel(true);
+      setCarouselKey(prev => prev + 1);
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -400,10 +415,10 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error }) => 
   }
 
   // Show narrative carousel if enabled
-  if (showNarrativeCarousel) {
+  if (showNarrativeCarousel && narrativeData) {
     return (
       <div className="relative">
-        <YearRecapCarousel puuid={puuid} playerName={playerName} />
+        <YearRecapCarousel key={carouselKey} cachedNarrativeData={narrativeData} />
         {/* Exit button */}
         <button
           onClick={() => setShowNarrativeCarousel(false)}
@@ -472,15 +487,30 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error }) => 
 
           {/* Narrative Launch Button */}
           <button
-            onClick={() => setShowNarrativeCarousel(true)}
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 px-6 rounded-xl mb-4 transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
+            onClick={handleNarrativeClick}
+            disabled={narrativeLoading}
+            className="w-full bg-gradient-to-r from-[#C89B3C] to-[#9d7c30] hover:from-[#d4a64a] hover:to-[#C89B3C] text-[#0a1428] font-black py-4 px-6 rounded-lg mb-4 transition-all transform hover:scale-105 shadow-lg border-2 border-[#C89B3C] flex items-center justify-center gap-3 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>View Your Year in Review</span>
+            {narrativeLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#0a1428]"></div>
+                <span>Generating...</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>View Your Year in Review</span>
+              </>
+            )}
           </button>
+          {narrativeError && (
+            <div className="mb-4 p-3 bg-red-900/30 border border-red-500/50 rounded-lg text-red-200 text-sm">
+              {narrativeError}
+            </div>
+          )}
 
           {/* Year at a Glance */}
           <div className="mb-4">
