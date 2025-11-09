@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Search, Settings, Users, Share2, Download, Link2, Check } from 'lucide-react';
+import { Search, Share2, Download, Link2, Check } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Button } from './ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -139,24 +138,12 @@ export function Header({ filters, setFilters, comparisonMode, setComparisonMode,
             )}
           </div>
 
-          {/* Comparison Toggle & Controls */}
+          {/* Controls */}
           <div className="flex items-center gap-3">
-            <Button
-              onClick={() => setComparisonMode(!comparisonMode)}
-              className={`${
-                comparisonMode 
-                  ? 'bg-gradient-to-r from-cyan-500 to-fuchsia-500 text-white' 
-                  : 'bg-slate-800/50 text-slate-300 border-slate-700'
-              } hover:opacity-90 transition-all`}
-            >
-              <Users className="w-4 h-4 mr-2" />
-              {comparisonMode ? 'Exit Compare' : 'Compare Players'}
-            </Button>
-
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input 
-                placeholder="Search..." 
+              <Input
+                placeholder="Search..."
                 className="pl-9 w-40 bg-slate-800/50 border-slate-700 text-slate-200"
               />
             </div>
@@ -170,7 +157,7 @@ export function Header({ filters, setFilters, comparisonMode, setComparisonMode,
               <DropdownMenuContent align="end" className="w-56 bg-slate-800 border-slate-700">
                 <DropdownMenuLabel className="text-slate-200">Share Stats</DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-slate-700" />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={handleCopyLink}
                   className="text-slate-200 hover:bg-slate-700 hover:text-cyan-400 cursor-pointer focus:bg-slate-700 focus:text-cyan-400"
                   disabled={copiedLink}
@@ -187,7 +174,7 @@ export function Header({ filters, setFilters, comparisonMode, setComparisonMode,
                     </>
                   )}
                 </DropdownMenuItem>
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={handleDownloadImage}
                   className="text-slate-200 hover:bg-slate-700 hover:text-cyan-400 cursor-pointer focus:bg-slate-700 focus:text-cyan-400"
                   disabled={downloading}
@@ -197,10 +184,6 @@ export function Header({ filters, setFilters, comparisonMode, setComparisonMode,
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            <button className="p-2 rounded-lg bg-slate-800/50 border border-slate-700 hover:bg-slate-700/50 transition-colors">
-              <Settings className="w-5 h-5 text-slate-400" />
-            </button>
           </div>
         </div>
 

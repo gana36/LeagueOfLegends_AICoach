@@ -36,6 +36,9 @@ function App() {
   const [yearRecapData, setYearRecapData] = useState(null);
   const [yearRecapLoading, setYearRecapLoading] = useState(false);
   const [yearRecapError, setYearRecapError] = useState(null);
+  const [narrativeData, setNarrativeData] = useState(null);
+  const [narrativeLoading, setNarrativeLoading] = useState(false);
+  const [narrativeError, setNarrativeError] = useState(null);
   const [performanceAnalyticsData, setPerformanceAnalyticsData] = useState(null);
   const [performanceAnalyticsLoading, setPerformanceAnalyticsLoading] = useState(false);
   const [performanceAnalyticsError, setPerformanceAnalyticsError] = useState(null);
@@ -202,6 +205,10 @@ function App() {
 
     // Reset year recap data so it fetches for the new player
     setYearRecapData(null);
+
+    // Reset narrative data
+    setNarrativeData(null);
+    setNarrativeError(null);
 
     // Reset performance analytics data so it fetches for the new player
     setPerformanceAnalyticsData(null);
@@ -386,6 +393,42 @@ function App() {
     }
   };
 
+  // Fetch narrative data (only once, cached)
+  const fetchNarrativeData = async () => {
+    if (narrativeData) {
+      // Already cached, no need to fetch again
+      return;
+    }
+
+    if (!currentPuuid) return;
+
+    try {
+      setNarrativeLoading(true);
+      setNarrativeError(null);
+      const response = await fetch(`${API_BASE_URL}/api/analytics/year-narrative`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          puuid: currentPuuid,
+          player_name: currentPlayerName || 'Player',
+          year: 2024
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setNarrativeData(data);
+      } else {
+        setNarrativeError(data.error || 'Failed to generate narrative');
+      }
+    } catch (err) {
+      setNarrativeError(err.message);
+    } finally {
+      setNarrativeLoading(false);
+    }
+  };
+
   // Fetch all analytics data upfront when app loads or player changes
   useEffect(() => {
     if (currentPuuid) {
@@ -439,12 +482,6 @@ function App() {
           <div className="text-sm text-gray-300">
             Current Player: <span className="text-primary-gold font-semibold">{currentPlayerName}</span>
           </div>
-          <button
-            onClick={() => setShowPlayerSearch(true)}
-            className="px-4 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all"
-          >
-            Load Player
-          </button>
         </div>
       </div>
 
@@ -455,6 +492,10 @@ function App() {
           playerName={currentPlayerName}
           loading={yearRecapLoading}
           error={yearRecapError}
+          narrativeData={narrativeData}
+          narrativeLoading={narrativeLoading}
+          narrativeError={narrativeError}
+          onFetchNarrative={fetchNarrativeData}
         />
       ) : currentPage === 'performance-analytics' ? (
         <PerformanceAnalyticsPage
