@@ -6,6 +6,8 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
   const [direction, setDirection] = useState('next');
   const carouselRef = useRef(null);
   const [touchStartX, setTouchStartX] = useState(0);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   // Use cached data if provided
   useEffect(() => {
@@ -25,6 +27,50 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
     if (currentCardIndex > 0) {
       setDirection('prev');
       setCurrentCardIndex(prev => prev - 1);
+    }
+  };
+
+  const handleShare = async () => {
+    setShowShareModal(true);
+  };
+
+  const handleCopyLink = async () => {
+    const shareUrl = `${window.location.origin}/#/year-recap`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
+
+  const handleDownloadImage = async () => {
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+
+      if (carouselRef.current) {
+        const canvas = await html2canvas(carouselRef.current, {
+          backgroundColor: '#0a1428',
+          useCORS: true,
+          logging: false,
+          scale: 2
+        });
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `year-recap-2024-${Date.now()}.png`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+          }
+        }, 'image/png');
+      }
+    } catch (err) {
+      console.error('Failed to download image:', err);
+      alert('Failed to download image. Please try again.');
     }
   };
 
@@ -128,7 +174,7 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
             ${direction === 'next' ? 'animate-slide-left' : 'animate-slide-right'}
           `}
         >
-          <CardRenderer card={currentCard} />
+          <CardRenderer card={currentCard} onShare={handleShare} />
         </div>
       </div>
 
@@ -183,6 +229,66 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
           </div>
         </div>
       )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowShareModal(false)}>
+          <div className="relative bg-gradient-to-b from-[#0a1428] to-[#1b263b] rounded-lg p-8 max-w-md w-full border-2 border-[#C89B3C] shadow-[0_0_30px_rgba(200,155,60,0.3)]" onClick={(e) => e.stopPropagation()}>
+            {/* Close button */}
+            <button
+              onClick={() => setShowShareModal(false)}
+              className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <h2 className="text-3xl font-black text-[#C89B3C] mb-6 uppercase tracking-wide" style={{textShadow: '0 0 10px rgba(200, 155, 60, 0.5)'}}>
+              Share Your Recap
+            </h2>
+
+            <div className="space-y-4">
+              {/* Copy Link Button */}
+              <button
+                onClick={handleCopyLink}
+                className="w-full bg-gradient-to-r from-[#C89B3C] to-[#9d7c30] hover:from-[#d4a64a] hover:to-[#C89B3C] text-[#0a1428] font-black py-4 px-6 rounded-lg transition-all transform hover:scale-105 shadow-lg border-2 border-[#C89B3C] flex items-center justify-center gap-3 uppercase tracking-wider"
+              >
+                {copySuccess ? (
+                  <>
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Link Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                    </svg>
+                    <span>Copy Link</span>
+                  </>
+                )}
+              </button>
+
+              {/* Download Image Button */}
+              <button
+                onClick={handleDownloadImage}
+                className="w-full bg-gradient-to-r from-[#0397AB] to-[#026e7a] hover:from-[#04a5b8] hover:to-[#0397AB] text-white font-black py-4 px-6 rounded-lg transition-all transform hover:scale-105 shadow-lg border-2 border-[#0397AB] flex items-center justify-center gap-3 uppercase tracking-wider"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Download Image</span>
+              </button>
+
+              <p className="text-white/60 text-sm text-center mt-6 font-semibold">
+                Perfect for sharing on Discord, Twitter, or anywhere! 🎮
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -218,7 +324,7 @@ const HextechPattern = () => (
 );
 
 // Card Renderer - renders different card types
-const CardRenderer = ({ card }) => {
+const CardRenderer = ({ card, onShare }) => {
   switch (card.type) {
     case 'hero':
       return <HeroCard card={card} />;
@@ -237,7 +343,7 @@ const CardRenderer = ({ card }) => {
     case 'narrative':
       return <NarrativeCard card={card} />;
     case 'finale':
-      return <FinaleCard card={card} />;
+      return <FinaleCard card={card} onShare={onShare} />;
     default:
       return <div className="text-white">Unknown card type</div>;
   }
@@ -578,7 +684,7 @@ const NarrativeCard = ({ card }) => (
 );
 
 // Finale Card (Closing) - League themed
-const FinaleCard = ({ card }) => (
+const FinaleCard = ({ card, onShare }) => (
   <div className="text-center text-white space-y-12 relative">
     {/* League-style corner accents */}
     <div className="absolute top-0 left-0 w-32 h-32 border-l-4 border-t-4 border-[#C89B3C] opacity-50"></div>
@@ -608,7 +714,10 @@ const FinaleCard = ({ card }) => (
     <div className="mt-16 relative z-10">
       <div className="relative inline-block group">
         <div className="absolute -inset-1 bg-gradient-to-r from-[#C89B3C] via-[#0397AB] to-[#C89B3C] opacity-75 blur group-hover:opacity-100 transition-opacity"></div>
-        <button className="relative bg-gradient-to-b from-[#0a1428] to-[#1b263b] text-white px-12 py-6 border-2 border-[#C89B3C] text-2xl font-black uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(200,155,60,0.5)]" style={{clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)'}}>
+        <button
+          onClick={onShare}
+          className="relative bg-gradient-to-b from-[#0a1428] to-[#1b263b] text-white px-12 py-6 border-2 border-[#C89B3C] text-2xl font-black uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(200,155,60,0.5)]"
+          style={{clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)'}}>
           <span className="drop-shadow-[0_0_10px_rgba(200,155,60,0.8)]">{card.call_to_action}</span>
         </button>
       </div>
