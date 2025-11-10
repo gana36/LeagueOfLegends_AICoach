@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import { getChampionImageUrl } from '../utils/championImages';
 import { MatchContextExtractor } from '../utils/matchContextExtractor';
 import { API_URL } from '../config';
-
-const CHAMPION_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/12.4.1/img/champion';
 
 const RightSidebar = ({ 
   currentFrame, 
@@ -35,7 +33,7 @@ const RightSidebar = ({
       content: 'Ping me when you need quick analysis or a next-step suggestion.'
     }
   ]);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [_isLoading, setIsLoading] = React.useState(false);
   const [conversationHistory, setConversationHistory] = React.useState([]);
   const chatScrollRef = React.useRef(null);
   const lastMessageRef = React.useRef(null);

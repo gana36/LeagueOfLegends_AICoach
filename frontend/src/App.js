@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import LeftSidebar from './components/LeftSidebar';
 import MapArea from './components/MapArea';
 import RightSidebar from './components/RightSidebar';
@@ -27,7 +27,7 @@ function App() {
   
   // Handle hash routing for shared links
   const [showPlayerSearch, setShowPlayerSearch] = useState(false);
-  const [currentPlayerData, setCurrentPlayerData] = useState(null);
+  const [_currentPlayerData, setCurrentPlayerData] = useState(null);
   const [currentPuuid, setCurrentPuuid] = useState(SNEAKY_PUUID);
   const [currentPlayerName, setCurrentPlayerName] = useState('Sneaky#NA1');
 
@@ -67,13 +67,13 @@ function App() {
   const [pinnedPlayers, setPinnedPlayers] = useState([]);
   const [detailsModalPlayer, setDetailsModalPlayer] = useState(null);
   const [showFrameEvents, setShowFrameEvents] = useState(false);
-  const [isMatchDropdownOpen, setIsMatchDropdownOpen] = useState(false);
+  const [_isMatchDropdownOpen, setIsMatchDropdownOpen] = useState(false);
 
   // Cache for timeline data to prevent duplicate fetches
   const [timelineCache, setTimelineCache] = useState({});
   const [pendingTimelineRequests, setPendingTimelineRequests] = useState({});
 
-  const frames = matchData?.info?.frames ?? [];
+  const frames = useMemo(() => matchData?.info?.frames ?? [], [matchData]);
   
   // Save current page to localStorage whenever it changes
   useEffect(() => {
@@ -358,7 +358,7 @@ function App() {
   };
 
   // Fetch year recap data
-  const fetchYearRecapData = async () => {
+  const fetchYearRecapData = useCallback(async () => {
     setYearRecapLoading(true);
     setYearRecapError(null);
 
@@ -413,10 +413,10 @@ function App() {
     } finally {
       setYearRecapLoading(false);
     }
-  };
+  }, [currentPuuid, currentPlayerName]);
 
   // Fetch performance analytics data
-  const fetchPerformanceAnalyticsData = async (filters = performanceAnalyticsFilters) => {
+  const fetchPerformanceAnalyticsData = useCallback(async (filters = performanceAnalyticsFilters) => {
     setPerformanceAnalyticsLoading(true);
     setPerformanceAnalyticsError(null);
 
@@ -472,10 +472,10 @@ function App() {
     } finally {
       setPerformanceAnalyticsLoading(false);
     }
-  };
+  }, [currentPuuid, performanceAnalyticsFilters]);
 
   // Fetch narrative data (cached in localStorage)
-  const fetchNarrativeData = async () => {
+  const fetchNarrativeData = useCallback(async () => {
     if (!currentPuuid) return;
 
     try {
@@ -531,7 +531,7 @@ function App() {
     } finally {
       setNarrativeLoading(false);
     }
-  };
+  }, [currentPuuid, currentPlayerName]);
 
   // DON'T fetch analytics upfront - only when user navigates to those pages
   // This makes the app load instantly for match analysis (the primary use case)
@@ -544,14 +544,14 @@ function App() {
         fetchNarrativeData();
       }
     }
-  }, [currentPuuid, currentPage, yearRecapData, narrativeData, narrativeLoading]);
+  }, [currentPuuid, currentPage, yearRecapData, narrativeData, narrativeLoading, fetchYearRecapData, fetchNarrativeData]);
 
   useEffect(() => {
     if (currentPuuid && currentPage === 'performance-analytics' && !performanceAnalyticsData) {
       // Only fetch if we don't already have the data
       fetchPerformanceAnalyticsData();
     }
-  }, [currentPuuid, currentPage, performanceAnalyticsData]);
+  }, [currentPuuid, currentPage, performanceAnalyticsData, fetchPerformanceAnalyticsData]);
 
   return (
     <DataCacheProvider>

@@ -36,7 +36,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
   ]);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [conversationHistory, setConversationHistory] = useState([]);
-  const [toolsInUse, setToolsInUse] = useState([]);
+  const [_toolsInUse, setToolsInUse] = useState([]);
   const chatScrollRef = useRef(null);
   const lastMessageRef = useRef(null);
   const chatInputRef = useRef(null);
@@ -85,10 +85,10 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
   }, []);
 
   const categories = [
-    { id: 'deaths', label: 'Deaths', icon: '✖', color: '#EF4444' },
-    { id: 'kills', label: 'Kills', icon: '⚔', color: '#10B981' },
-    { id: 'assists', label: 'Assists', icon: '＋', color: '#3B82F6' },
-    { id: 'objectives', label: 'Objectives', icon: '◎', color: '#F59E0B' }
+    { id: 'deaths', label: 'Deaths', icon: '☠', color: '#EF4444' },
+    { id: 'kills', label: 'Kills', icon: '⚔️', color: '#10B981' },
+    { id: 'assists', label: 'Assists', icon: '🤝', color: '#3B82F6' },
+    { id: 'objectives', label: 'Objectives', icon: '🎯', color: '#F59E0B' }
   ];
 
   const currentCategory = categories.find(c => c.id === selectedCategory);
@@ -105,7 +105,9 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
     return yearRecapData?.heatmap_data?.[selectedCategory] || [];
   }, [yearRecapData, selectedCategory, filteredHeatmapData]);
 
-  const currentTimelineData = yearRecapData?.timeline_data?.[selectedCategory] || [];
+  const currentTimelineData = useMemo(() =>
+    yearRecapData?.timeline_data?.[selectedCategory] || []
+  , [yearRecapData, selectedCategory]);
 
   // Playback effect
   const maxMinute = useMemo(() => {
@@ -566,7 +568,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
             <div className="space-y-2">
               <div className="bg-gradient-to-r from-amber-900/30 to-transparent border border-amber-500/30 rounded-lg p-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">★</span>
+                  <span className="text-2xl">⭐</span>
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-white">Games Played</div>
                     <div className="text-xs text-text-secondary">{stats.total_matches || 0} matches this year</div>
@@ -575,7 +577,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
               </div>
               <div className="bg-gradient-to-r from-purple-900/30 to-transparent border border-purple-500/30 rounded-lg p-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">◎</span>
+                  <span className="text-2xl">🎯</span>
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-white">Objective Focus</div>
                     <div className="text-xs text-text-secondary">{stats.objectives_count || 0} objectives secured</div>
@@ -584,7 +586,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
               </div>
               <div className="bg-gradient-to-r from-cyan-900/30 to-transparent border border-cyan-500/30 rounded-lg p-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">⚔</span>
+                  <span className="text-2xl">⚔️</span>
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-white">Combat Veteran</div>
                     <div className="text-xs text-text-secondary">
@@ -1101,7 +1103,7 @@ const YearRecapTimelineBar = ({
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging]);
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   if (!timelineData || timelineData.length === 0) {
     return null;
@@ -1114,7 +1116,7 @@ const YearRecapTimelineBar = ({
     return `${minute}:00`;
   };
 
-  const displayMinute = currentMinute === null ? maxMinute : currentMinute;
+  const _displayMinute = currentMinute === null ? maxMinute : currentMinute;
 
   return (
     <div className="bg-gray-900 border-t border-gray-700 px-6 py-3">

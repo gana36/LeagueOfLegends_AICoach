@@ -1,16 +1,7 @@
 import { useState } from 'react';
-import { Search, Share2, Download, Link2, Check } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
 
 interface HeaderProps {
   filters: {
@@ -31,10 +22,10 @@ interface HeaderProps {
 }
 
 export function Header({ filters, setFilters, comparisonMode, setComparisonMode, playerA, setPlayerA, playerB, setPlayerB, pageContentRef }: HeaderProps) {
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [_copiedLink, setCopiedLink] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  const handleCopyLink = async () => {
+  const _handleCopyLink = async () => {
     try {
       // Create ultra-compact URL format
       // Format: /#/a/[region]-[champion]-[role]-[patch]-[timeRange]-[comparisonMode]-[playerHash]

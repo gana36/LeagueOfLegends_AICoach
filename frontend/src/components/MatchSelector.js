@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getChampionImageUrl } from '../utils/championImages';
 import { API_URL } from '../config';
 import './MatchSelector.css';
@@ -9,21 +9,7 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId, onDropdownChange,
   const [error, setError] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
-  useEffect(() => {
-    if (puuid) {
-      fetchMatches();
-    }
-  }, [puuid]);
-
-  // Close dropdown when parent requests it
-  useEffect(() => {
-    if (forceClose && isOpen) {
-      setIsOpen(false);
-      if (onDropdownChange) onDropdownChange(false);
-    }
-  }, [forceClose, isOpen, onDropdownChange]);
-
-  const fetchMatches = async () => {
+  const fetchMatches = useCallback(async () => {
     if (!puuid) {
       console.warn('No PUUID provided to MatchSelector');
       setError('No player selected');
@@ -101,7 +87,21 @@ const MatchSelector = ({ puuid, onMatchSelect, currentMatchId, onDropdownChange,
     } finally {
       setLoading(false);
     }
-  };
+  }, [puuid, currentMatchId, onMatchSelect]);
+
+  useEffect(() => {
+    if (puuid) {
+      fetchMatches();
+    }
+  }, [puuid, fetchMatches]);
+
+  // Close dropdown when parent requests it
+  useEffect(() => {
+    if (forceClose && isOpen) {
+      setIsOpen(false);
+      if (onDropdownChange) onDropdownChange(false);
+    }
+  }, [forceClose, isOpen, onDropdownChange]);
 
   const formatDate = (timestamp) => {
     const date = new Date(timestamp);

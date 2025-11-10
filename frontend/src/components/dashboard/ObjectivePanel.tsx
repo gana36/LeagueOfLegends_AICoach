@@ -1,14 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Flame, Crown, Axe, Droplet, Castle } from 'lucide-react';
 
-const objectiveData = [
-  { name: 'Dragons', playerA: 3.2, playerB: 2.8, icon: Flame, color: '#ef4444' },
-  { name: 'Barons', playerA: 0.8, playerB: 0.6, icon: Crown, color: '#8b5cf6' },
-  { name: 'Heralds', playerA: 0.6, playerB: 0.7, icon: Axe, color: '#f59e0b' },
-  { name: 'First Blood', playerA: 0.35, playerB: 0.28, icon: Droplet, color: '#dc2626' },
-  { name: 'First Tower', playerA: 0.42, playerB: 0.38, icon: Castle, color: '#64748b' }
-];
-
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (

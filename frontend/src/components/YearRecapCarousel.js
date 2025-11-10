@@ -16,7 +16,7 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState('');
   const [isCapturing, setIsCapturing] = useState(false);
-  const cardRefs = useRef([]);
+  const _cardRefs = useRef([]);
 
   // Use cached data if provided
   useEffect(() => {
@@ -43,7 +43,7 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
     setShowShareModal(true);
   };
 
-  const handleCopyLink = async () => {
+  const _handleCopyLink = async () => {
     const shareUrl = `${window.location.origin}/#/year-recap`;
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -54,7 +54,7 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
     }
   };
 
-  const handleDownloadCurrentCard = async () => {
+  const _handleDownloadCurrentCard = async () => {
     try {
       const html2canvas = (await import('html2canvas')).default;
 
@@ -471,7 +471,7 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentCardIndex, narrativeData]);
+  }, [currentCardIndex, narrativeData, nextCard, prevCard]);
 
   if (!narrativeData || !narrativeData.cards) {
     return null;

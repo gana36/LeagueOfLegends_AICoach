@@ -71,3 +71,6 @@ htmlcov/
 /backend/fetch_sneaky_organized_data.py
 /backend/generate_year_recap_data.py
 /backend/.venv/
+/backend/source-config.json
+/backend/instance-config.json
+/frontend/amplify

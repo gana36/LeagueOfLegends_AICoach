@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { MONSTER_ICONS } from '../constants/monsterIcons';
 import { getChampionImageUrl } from '../utils/championImages';
 
-const CHAMPION_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/12.4.1/img/champion';
 const ITEM_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/15.21.1/img/item';
 const SPELL_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/15.21.1/img/spell';
 const SUMMONER_SPELLS = {

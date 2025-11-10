@@ -9,8 +9,6 @@ import { VisionPanel } from './dashboard/VisionPanel';
 import { ItemRuneSection } from './dashboard/ItemRuneSection';
 import { API_URL } from '../config';
 
-const API_BASE_URL = API_URL;
-
 interface PerformanceAnalyticsPageProps {
   puuid?: string;
   playerName?: string;
@@ -42,7 +40,7 @@ function PerformanceAnalyticsPage({ puuid, playerName, cachedData, loading: exte
   const [radarData, setRadarData] = useState(null);
 
   const loading = externalLoading ?? false;
-  const error = externalError ?? null;
+  const _error = externalError ?? null;
 
   // Update local state when cached data changes
   useEffect(() => {

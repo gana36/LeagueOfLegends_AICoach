@@ -4,22 +4,6 @@ import { Progress } from './ui/progress';
 import { useDataCache } from '../../contexts/DataCacheContext';
 import { API_URL } from '../../config';
 
-const API_BASE_URL = API_URL;
-
-const items = [
-  { name: 'Infinity Edge', usage: 78, itemId: 3031, color: 'red' },
-  { name: 'Phantom Dancer', usage: 65, itemId: 3046, color: 'purple' },
-  { name: 'Bloodthirster', usage: 58, itemId: 3072, color: 'red' },
-  { name: 'Guardian Angel', usage: 52, itemId: 3026, color: 'amber' }
-];
-
-const runes = [
-  { name: 'Conqueror', usage: 72, icon: Swords, color: 'red' },
-  { name: 'Triumph', usage: 68, icon: Heart, color: 'green' },
-  { name: 'Alacrity', usage: 64, icon: Zap, color: 'amber' },
-  { name: 'Last Stand', usage: 60, icon: Shield, color: 'cyan' }
-];
-
 interface ItemRuneSectionProps {
   comparisonMode: boolean;
   data?: any;
