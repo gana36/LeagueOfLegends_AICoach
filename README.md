@@ -1,314 +1,160 @@
 # Rift Rewind
 
-**Your personalized League of Legends year-end recap, powered by AWS and Riot Games API**
+Rift Rewind is an AI-powered League of Legends coaching companion that helps players reflect on a full year of matches, understand persistent habits, and plan their next climb. Inspired by the Rift Rewind challenge, the project combines Riot Games match data with Amazon Bedrock to deliver data-rich retrospectives that feel personal and actionable.
 
-Built for the Rift Rewind Hackathon by AWS and Riot Games.
+## Project Highlights
 
-## Overview
+- **End-of-Year Recap:** Generates narrative summaries, highlight reels, and stat-driven callouts tailored to each player’s season.
+- **AI Coaching Agent:** Conversational assistant powered by Claude 3 Sonnet that diagnoses recurring patterns, benchmarks against custom goals, and proposes practice plans.
+- **Insightful Visualizations:** Charts, timelines, and champion breakdowns that show progress across roles, objectives, and play phases.
+- **Highlight Explorer:** On-demand deep dives into standout matches with quick links to event timelines and performance summaries.
+- **Share-Ready Moments:** Auto-generated summary cards designed for quick posting to Discord, X, and other social channels.
+- **Low-Latency Experience:** LocalStorage caching, lazy loading, and pre-aggregated analytics for responsive navigation across pages.
 
-Rift Rewind is an AI-powered application that generates personalized end-of-year recaps for League of Legends players. Using Amazon Bedrock's Claude AI and the Riot Games API, it analyzes match history to provide:
+## Architecture Overview
 
-- **🤖 AI Coaching Agent** ⭐ NEW: Multi-step reasoning agent that analyzes your gameplay, identifies patterns, and creates personalized improvement plans
-- **AI-Generated Narratives**: Personalized year-end stories celebrating your League journey
-- **Performance Analytics**: Deep insights into playstyle, strengths, and areas for improvement
-- **Visual Summaries**: Beautiful visualizations of stats, champions, and highlights
-- **Shareable Content**: Social media-ready recaps to share with friends
-
-## Architecture
-
-### Tech Stack
-
-**Backend:**
-- FastAPI (Python 3.11+)
-- Amazon Bedrock (Claude 3 Sonnet)
-- Riot Games API
-- Boto3 (AWS SDK)
-
-**Frontend:**
-- React 18
-- Vite
-- Tailwind CSS
-- Framer Motion
-- Recharts
-
-**Infrastructure:**
-- AWS Bedrock for AI generation
-- Optional: AWS Lambda, S3, DynamoDB for production deployment
-
-## Features
-
-### 🤖 AI Coaching Agent (Powered by Amazon Bedrock Agents)
-**The Star Feature - Goes Far Beyond op.gg!**
-
-Our multi-step reasoning AI coach uses Amazon Bedrock's function calling to:
-- **Analyze patterns** in your gameplay across multiple dimensions
-- **Compare your stats** to target ranks (Gold → Diamond)
-- **Recommend champions** based on identified weaknesses
-- **Generate practice plans** with week-by-week improvement roadmaps
-- **Answer questions** through natural conversation with context awareness
-
-**Example Agent Flow:**
 ```
-User: "Why am I stuck in Gold?"
-
-Agent:
-1. 🔧 Analyzes recent 20 games → Finds 38% win rate after 35 min
-2. 🔧 Detects patterns → Vision score drops 40% in late game
-3. 🔧 Compares to Platinum → Vision 33% below target rank
-4. 🔧 Generates practice plan → 3-week vision improvement roadmap
-5. 💬 Synthesizes: "Your late game vision needs work. Here's how..."
+LeagueOfLegends_AICoach/
+├── backend/
+│   ├── main.py                # FastAPI entrypoint and routing
+│   ├── services/
+│   │   ├── riot_api.py        # Riot API integrations
+│   │   ├── bedrock_ai.py      # Bedrock client and prompt orchestration
+│   │   └── match_analyzer.py  # Feature engineering and insight logic
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── App.js             # Application shell and routing
+│   │   ├── components/        # Visualization, chat, and recap UI
+│   │   └── services/          # API client wrappers and caching helpers
+│   └── package.json
+└── README.md
 ```
 
-**Tools Available to the Agent:**
-- `analyze_recent_performance` - Win rate trends, game length performance
-- `detect_patterns` - Vision, damage, objective patterns
-- `recommend_champions` - Champion pool suggestions based on weaknesses
-- `compare_to_rank` - Stat-by-stat comparison to target rank
-- `generate_practice_plan` - Structured weekly improvement plans
+The backend provides secure endpoints for player lookup, match ingestion, analytics, and narrative generation. The frontend (React + Vite) orchestrates data fetching, renders insight dashboards, and exposes the conversational coaching agent.
 
-See [AI_AGENT_IMPLEMENTATION.md](AI_AGENT_IMPLEMENTATION.md) for technical details.
+## Data & Insight Pipeline
 
-### AI-Powered Insights
-- Personalized year-end narratives using Claude AI
-- Playstyle analysis and recommendations
-- Strengths and weaknesses identification
-- Actionable improvement tips
+1. **Match Acquisition:** Fetch a full-year match list and individual match data through the League Developer API. Responses are cached in-memory server-side and in localStorage per player to minimize redundant calls.
+2. **Feature Engineering:** Compute aggregate metrics such as win rate by game length, damage share, vision score trends, objective control windows, and champion proficiency.
+3. **Trend Detection:** Surface recurring strengths and weaknesses, identify breakout champions, and measure momentum across the season.
+4. **Insight Synthesis:** Produce structured summaries (strengths, weaknesses, highlight matches) that feed the AI agent, recap generator, and visualization components.
+5. **Presentation:** Deliver charts, tables, and narratives to the frontend, enabling players to explore both at-a-glance dashboards and deep-dive analyses.
 
-### Performance Analytics
-- Win rate and KDA tracking
-- Champion mastery statistics
-- Role performance analysis
-- Highlight moments extraction
+## AI Coaching Agent
 
-### Beyond op.gg
-- Natural language storytelling about your League journey
-- AI-generated insights that understand context
-- Personalized recommendations based on playstyle
-- Shareable social media content
+- Uses Claude 3 Sonnet via Amazon Bedrock with tool-calling to pull real-time analytics, compare stat baselines, and assemble practice roadmaps.
+- Maintains conversational context so players can ask follow-up questions (“What changed after I swapped to jungle?”).
+- Offers timeline navigation requests (e.g., jump to first dragon, baron calls) after obtaining user confirmation.
+- Applies guardrails to keep responses grounded in verified match data.
+
+## Frontend Experience
+
+- Built with React 18, Vite, Tailwind CSS, Framer Motion, and Recharts.
+- Match selector caches up to 100 matches per player with manual refresh controls.
+- Year recap, performance analytics, and narrative views rely on cached API responses for instant reloads within defined time windows.
+- Right sidebar hosts the coaching chat, highlight timeline, and quick action shortcuts.
+
+## Backend Services & APIs
+
+- **FastAPI** application orchestrates Riot API calls, analytics, and Bedrock interactions.
+- Core endpoints:
+  - `POST /api/player/lookup` – Resolve a player by Riot ID.
+  - `POST /api/matches/history` – Retrieve cached or live match lists.
+  - `POST /api/analysis/year-recap` – Generate a narrative recap and highlight set.
+  - `POST /api/analysis/insights` – Return structured strengths, weaknesses, and trend metrics.
+  - `POST /api/chat/match-analysis` – Converse with the AI coaching agent.
+- Analytics modules normalize and aggregate match data before exposing it to the frontend or Bedrock prompts.
+
+## AWS Integration
+
+- **Amazon Bedrock (Claude 3 Sonnet):** Generates personalized narratives, contextual coaching feedback, and highlight commentary.
+- **Boto3 Client Utilities:** Handle authentication, prompt construction, and retry logic for Bedrock calls.
+- **Identity and Access Management:** Granular IAM policies restrict Bedrock access to the required models and operations.
+- **Deployment-Ready Extensions:** The architecture supports running the API on AWS Lambda behind API Gateway, persisting derived analytics in DynamoDB, and storing shareable assets in Amazon S3. Resources can be tagged with `key=rift-rewind-hackathon`, `value=2025` for traceability.
 
 ## Getting Started
 
 ### Prerequisites
 
-1. **Riot Games API Key**
-   - Sign up at [Riot Developer Portal](https://developer.riotgames.com/)
-   - Generate a development API key
-
-2. **AWS Account**
-   - Create an AWS account
-   - Enable Amazon Bedrock
-   - Request access to Claude 3 Sonnet model
-   - Create IAM user with Bedrock permissions
-
-3. **Python 3.11+** and **Node.js 18+**
+1. Riot Games Developer API key (create at the [Riot Developer Portal](https://developer.riotgames.com/)).
+2. AWS account with Amazon Bedrock enabled and access to Claude 3 Sonnet.
+3. Python 3.11+ and Node.js 18+ installed locally.
 
 ### Installation
 
-#### 1. Clone the repository
-
 ```bash
-git clone <your-repo-url>
-cd rift
+git clone <your-public-repo-url>
+cd LeagueOfLegends_AICoach
 ```
 
-#### 2. Backend Setup
+#### Backend Setup
 
 ```bash
 cd backend
-
-# Create virtual environment
 python -m venv venv
-
-# Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-
-# Install dependencies
+source venv/bin/activate  # On Windows use venv\Scripts\activate
 pip install -r requirements.txt
-
-# Create .env file
 cp .env.example .env
 ```
 
-Edit `backend/.env` with your credentials:
+Populate `backend/.env`:
 
 ```env
-RIOT_API_KEY=your_riot_api_key_here
+RIOT_API_KEY=your_riot_api_key
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=your_aws_access_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret_key
 ```
 
-#### 3. Frontend Setup
+#### Frontend Setup
 
 ```bash
 cd ../frontend
-
-# Install dependencies
 npm install
-
-# Create .env file
 cp .env.example .env
 ```
 
-Edit `frontend/.env`:
+Set the API base URL in `frontend/.env`:
 
 ```env
 VITE_API_URL=http://localhost:8000
 ```
 
-### Running the Application
+## Local Development
 
-#### Start Backend
-
-```bash
-cd backend
-python main.py
-```
-
-Backend will run on `http://localhost:8000`
-
-#### Start Frontend
+Run the backend and frontend in separate terminals.
 
 ```bash
-cd frontend
-npm run dev
-```
-
-Frontend will run on `http://localhost:5173`
-
-### Usage
-
-1. Open `http://localhost:5173` in your browser
-2. Enter your Riot ID (Game Name + Tag Line)
-3. Select your region
-4. Click "Generate My Recap"
-5. Wait for AI to analyze your matches
-6. View your personalized recap and insights
-
-## API Endpoints
-
-### Player Lookup
-```
-POST /api/player/lookup
-```
-Lookup player by Riot ID
-
-### Match History
-```
-POST /api/matches/history
-```
-Get match history for a player
-
-### Year Recap
-```
-POST /api/analysis/year-recap
-```
-Generate AI-powered year-end recap
-
-### Insights
-```
-POST /api/analysis/insights
-```
-Generate performance insights
-
-### Strengths & Weaknesses
-```
-POST /api/analysis/strengths-weaknesses
-```
-Analyze strengths and weaknesses
-
-## AWS Services Used
-
-### Amazon Bedrock
-- **Model**: Claude 3 Sonnet
-- **Use Cases**:
-  - Generating personalized narratives
-  - Analyzing playstyle patterns
-  - Identifying strengths and weaknesses
-  - Creating improvement recommendations
-
-### AWS Tagging
-All AWS resources are tagged with:
-```
-key: rift-rewind-hackathon
-value: 2025
-```
-
-## Project Structure
-
-```
-rift/
-├── backend/
-│   ├── services/
-│   │   ├── riot_api.py          # Riot API client
-│   │   ├── bedrock_ai.py        # AWS Bedrock integration
-│   │   └── match_analyzer.py    # Match analysis logic
-│   ├── main.py                  # FastAPI application
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── components/          # React components
-│   │   ├── pages/               # Page components
-│   │   ├── services/            # API client
-│   │   └── App.jsx
-│   └── package.json
-└── README.md
-```
-
-## Development
-
-### Backend Development
-
-```bash
+# Backend
 cd backend
 uvicorn main:app --reload
-```
 
-### Frontend Development
-
-```bash
+# Frontend
 cd frontend
 npm run dev
 ```
 
-### Building for Production
+Visit `http://localhost:5173`, enter your Riot ID (Game Name + Tag Line), and explore the generated recap.
 
-```bash
-cd frontend
-npm run build
-```
+## Testing
 
-## Methodology
+- Frontend: `npm test` covers core components, selectors, and data mappers.
+- Backend: `pytest` validates Riot API wrappers, analytics calculations, and Bedrock orchestration.
+- Logging: Match caching and AI prompts emit debug logs for diagnosing cache effectiveness and response quality.
 
-### Data Analysis
-1. Fetch match history from Riot API
-2. Calculate aggregate statistics (KDA, win rate, CS/min, etc.)
-3. Identify patterns and trends
-4. Extract highlight moments
+## Deployment Notes
 
-### AI Generation
-1. Structure match data into prompts
-2. Send to Amazon Bedrock (Claude 3 Sonnet)
-3. Generate personalized narratives
-4. Parse and format AI responses
-
-### Key Insights
-- **Playstyle Analysis**: Aggressive vs. passive, carry vs. support
-- **Strengths**: Consistent patterns of success
-- **Weaknesses**: Areas with room for improvement
-- **Trends**: Performance trajectory over time
+- **Backend:** Containerize for ECS/Fargate or package as Lambda functions with API Gateway. Store secrets in AWS Systems Manager Parameter Store or AWS Secrets Manager.
+- **Frontend:** Build with `npm run build` and deploy to Amazon S3 + CloudFront, AWS Amplify, or any static host.
+- **Observability:** Monitor with Amazon CloudWatch metrics and structured logging; integrate X-Ray or OpenTelemetry if distributed tracing is needed.
 
 ## License
 
-MIT License - See LICENSE file
+This project is released under the MIT License. See the accompanying `LICENSE` file for full terms.
 
 ## Acknowledgments
 
-- **AWS** for Bedrock and AI services
-- **Riot Games** for the League of Legends API
-- Hackathon organizers and community
-
-Built with ❤️ for Rift Rewind Hackathon 2025
+- AWS for Amazon Bedrock and supporting tooling.
+- Riot Games for providing League of Legends developer APIs and datasets.
+- The Rift Rewind community for inspiration and feedback throughout development.
