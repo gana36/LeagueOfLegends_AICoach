@@ -2,8 +2,6 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { MONSTER_ICONS } from '../constants/monsterIcons';
 import { getChampionImageUrl } from '../utils/championImages';
 
-const CHAMPION_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/12.4.1/img/champion';
-
 const MapArea = ({
   currentFrame,
   playerFilter,
@@ -371,7 +369,7 @@ const MapArea = ({
     }
 
     return event.type?.replace(/_/g, ' ') || 'Event';
-  }, [participantSummary]);
+  }, [participantSummary, getParticipantName]);
 
   const getEventTimestamp = useCallback((event) => {
     if (event?.timestamp !== undefined) return event.timestamp;

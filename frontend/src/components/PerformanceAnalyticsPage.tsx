@@ -7,8 +7,7 @@ import { ChampionGrid } from './dashboard/ChampionGrid';
 import { ObjectivePanel } from './dashboard/ObjectivePanel';
 import { VisionPanel } from './dashboard/VisionPanel';
 import { ItemRuneSection } from './dashboard/ItemRuneSection';
-
-const API_BASE_URL = 'http://localhost:8000';
+import { API_URL } from '../config';
 
 interface PerformanceAnalyticsPageProps {
   puuid?: string;
@@ -41,7 +40,7 @@ function PerformanceAnalyticsPage({ puuid, playerName, cachedData, loading: exte
   const [radarData, setRadarData] = useState(null);
 
   const loading = externalLoading ?? false;
-  const error = externalError ?? null;
+  const _error = externalError ?? null;
 
   // Update local state when cached data changes
   useEffect(() => {

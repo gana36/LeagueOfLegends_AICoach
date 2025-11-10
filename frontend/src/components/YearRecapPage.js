@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import HabitsSection from './HabitsSection';
 import YearRecapCarousel from './YearRecapCarousel';
+import { API_URL } from '../config';
 
 const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narrativeData, narrativeLoading, narrativeError, onFetchNarrative }) => {
   const [mapDimensions, setMapDimensions] = useState({ width: 0, height: 0 });
@@ -35,7 +36,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
   ]);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [conversationHistory, setConversationHistory] = useState([]);
-  const [toolsInUse, setToolsInUse] = useState([]);
+  const [_toolsInUse, setToolsInUse] = useState([]);
   const chatScrollRef = useRef(null);
   const lastMessageRef = useRef(null);
   const chatInputRef = useRef(null);
@@ -84,10 +85,10 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
   }, []);
 
   const categories = [
-    { id: 'deaths', label: 'Deaths', icon: '✖', color: '#EF4444' },
-    { id: 'kills', label: 'Kills', icon: '⚔', color: '#10B981' },
-    { id: 'assists', label: 'Assists', icon: '＋', color: '#3B82F6' },
-    { id: 'objectives', label: 'Objectives', icon: '◎', color: '#F59E0B' }
+    { id: 'deaths', label: 'Deaths', icon: '☠', color: '#EF4444' },
+    { id: 'kills', label: 'Kills', icon: '⚔️', color: '#10B981' },
+    { id: 'assists', label: 'Assists', icon: '🤝', color: '#3B82F6' },
+    { id: 'objectives', label: 'Objectives', icon: '🎯', color: '#F59E0B' }
   ];
 
   const currentCategory = categories.find(c => c.id === selectedCategory);
@@ -104,7 +105,9 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
     return yearRecapData?.heatmap_data?.[selectedCategory] || [];
   }, [yearRecapData, selectedCategory, filteredHeatmapData]);
 
-  const currentTimelineData = yearRecapData?.timeline_data?.[selectedCategory] || [];
+  const currentTimelineData = useMemo(() =>
+    yearRecapData?.timeline_data?.[selectedCategory] || []
+  , [yearRecapData, selectedCategory]);
 
   // Playback effect
   const maxMinute = useMemo(() => {
@@ -261,7 +264,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
 
     try {
       // Call year recap chat endpoint with puuid
-      const response = await fetch('http://localhost:8000/api/year-recap/chat', {
+      const response = await fetch(`${API_URL}/api/year-recap/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -392,7 +395,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
           <div className="text-white text-xl font-semibold mb-2">Failed to Load Year Recap</div>
           <div className="text-text-secondary text-sm mb-4">{error}</div>
           <div className="text-text-secondary text-xs">
-            Make sure the backend server is running at http://localhost:8000
+            Make sure the backend server is running at {API_URL}
           </div>
         </div>
       </div>
@@ -565,7 +568,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
             <div className="space-y-2">
               <div className="bg-gradient-to-r from-amber-900/30 to-transparent border border-amber-500/30 rounded-lg p-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">★</span>
+                  <span className="text-2xl">⭐</span>
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-white">Games Played</div>
                     <div className="text-xs text-text-secondary">{stats.total_matches || 0} matches this year</div>
@@ -574,7 +577,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
               </div>
               <div className="bg-gradient-to-r from-purple-900/30 to-transparent border border-purple-500/30 rounded-lg p-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">◎</span>
+                  <span className="text-2xl">🎯</span>
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-white">Objective Focus</div>
                     <div className="text-xs text-text-secondary">{stats.objectives_count || 0} objectives secured</div>
@@ -583,7 +586,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
               </div>
               <div className="bg-gradient-to-r from-cyan-900/30 to-transparent border border-cyan-500/30 rounded-lg p-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">⚔</span>
+                  <span className="text-2xl">⚔️</span>
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-white">Combat Veteran</div>
                     <div className="text-xs text-text-secondary">
@@ -1100,7 +1103,7 @@ const YearRecapTimelineBar = ({
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging]);
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   if (!timelineData || timelineData.length === 0) {
     return null;
@@ -1113,7 +1116,7 @@ const YearRecapTimelineBar = ({
     return `${minute}:00`;
   };
 
-  const displayMinute = currentMinute === null ? maxMinute : currentMinute;
+  const _displayMinute = currentMinute === null ? maxMinute : currentMinute;
 
   return (
     <div className="bg-gray-900 border-t border-gray-700 px-6 py-3">
