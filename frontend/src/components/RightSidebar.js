@@ -21,7 +21,8 @@ const RightSidebar = ({
   onToggleEvent,
   onOpenPlayerModal,
   onOpenFrameEventsModal,
-  onSetPlayerFilter
+  onSetPlayerFilter,
+  onShowEventCard
 }) => {
   const [isChatOpen, setIsChatOpen] = React.useState(false);
   const [chatWidth, setChatWidth] = React.useState(320); // Default width
@@ -528,17 +529,19 @@ const RightSidebar = ({
       if (onOpenFrameEventsModal) {
         onOpenFrameEventsModal();
       }
-    } else if (params.cardType === 'dragon' || params.cardType === 'kill') {
-      // For dragon/kill cards, navigate to the event and open frame events modal
-      if (params.data?.frameIndex !== undefined && onNavigateToFrame) {
-        onNavigateToFrame(params.data.frameIndex);
-        // Small delay to let navigation complete, then open modal
-        setTimeout(() => {
-          if (onOpenFrameEventsModal) {
-            onOpenFrameEventsModal();
-          }
-        }, 100);
+    } else if (['dragon', 'kill', 'tower', 'baron', 'herald'].includes(params.cardType)) {
+      const eventData = params.data;
+      if (eventData?.frameIndex !== undefined && onNavigateToFrame) {
+        onNavigateToFrame(eventData.frameIndex);
       }
+
+      if (onShowEventCard) {
+        onShowEventCard({
+          ...eventData,
+          cardType: params.cardType
+        });
+      }
+
     }
   };
 
@@ -554,12 +557,217 @@ const RightSidebar = ({
     setChatMessages(prev => [...prev, actionMessage]);
   };
 
-  const executeAction = (action) => {
+  const ensureSentence = (text) => {
+    if (!text) return '';
+    const trimmed = text.trim();
+    if (!trimmed) return '';
+    return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+  };
+
+  const capitalizeWord = (word) => {
+    if (!word) return '';
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  };
+
+  const formatLabel = (value) => {
+    if (!value) return null;
+    return value
+      .toString()
+      .toLowerCase()
+      .split('_')
+      .map(capitalizeWord)
+      .join(' ');
+  };
+
+  const getTeamName = (teamId) => {
+    if (teamId === 100) return 'Blue Team';
+    if (teamId === 200) return 'Red Team';
+    return null;
+  };
+
+  const formatMinutes = (value) => {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) return null;
+    const totalSeconds = Math.max(0, Math.round(Number(value) * 60));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const getTimestampFromData = (data = {}, fallbackFrameIndex, fallbackMinutes) => {
+    if (data.timestamp !== undefined && data.timestamp !== null) {
+      return formatMinutes(data.timestamp);
+    }
+    if (data.timestampMillis !== undefined && data.timestampMillis !== null) {
+      return formatMinutes(data.timestampMillis / 60000);
+    }
+    if (fallbackMinutes !== undefined && fallbackMinutes !== null) {
+      return formatMinutes(fallbackMinutes);
+    }
+    if (fallbackFrameIndex !== undefined && fallbackFrameIndex !== null) {
+      return formatMinutes(fallbackFrameIndex);
+    }
+    return null;
+  };
+
+  const getParticipantDisplayName = (participantId) => {
+    if (participantId === null || participantId === undefined) return null;
+    const summary = participantSummary[participantId];
+    return summary?.summonerName || summary?.championName || `Player ${participantId}`;
+  };
+
+  const formatAssistSuffix = (participantIds = []) => {
+    const names = participantIds
+      .map(getParticipantDisplayName)
+      .filter(Boolean);
+    if (!names.length) return '';
+    if (names.length === 1) {
+      return ` (assisted by ${names[0]})`;
+    }
+    return ` (assisted by ${names.join(', ')})`;
+  };
+
+  const formatOpenCardSummary = (params = {}) => {
+    const { cardType, data = {}, index } = params;
+    if (!cardType) {
+      return ensureSentence(params.description || 'Opened the card');
+    }
+
+    const time = getTimestampFromData(data, data.frameIndex, params.minutes);
+    const timeText = time ? ` at ${time}` : '';
+    const assistSuffix = formatAssistSuffix(data.assistingParticipantIds);
+
+    switch (cardType) {
+      case 'kill': {
+        const killLabel = index !== undefined && index !== null ? `Kill #${index + 1}` : 'Kill';
+        const killerName = getParticipantDisplayName(data.killerId) || data.killerName || 'Unknown killer';
+        const victimName = getParticipantDisplayName(data.victimId) || data.victimName || 'their target';
+        let summary = `${killLabel}${timeText} — ${killerName} eliminated ${victimName}${assistSuffix}`;
+        if (data.bounty) {
+          summary += ` (${data.bounty}g bounty)`;
+        }
+        return ensureSentence(summary);
+      }
+      case 'dragon': {
+        const dragonType = formatLabel(data.monsterSubType || data.dragonType) || 'Dragon';
+        const dragonLabel = index !== undefined && index !== null
+          ? `Dragon #${index + 1}${dragonType ? ` (${dragonType})` : ''}`
+          : dragonType;
+        const killerName = getParticipantDisplayName(data.killerId) || getTeamName(data.teamId) || 'their team';
+        const summary = `${dragonLabel}${timeText} secured by ${killerName}${assistSuffix}`;
+        return ensureSentence(summary);
+      }
+      case 'baron': {
+        const killerName = getParticipantDisplayName(data.killerId) || getTeamName(data.teamId) || 'their team';
+        const summary = `Baron Nashor${timeText} secured by ${killerName}${assistSuffix}`;
+        return ensureSentence(summary);
+      }
+      case 'herald': {
+        const killerName = getParticipantDisplayName(data.killerId) || getTeamName(data.teamId) || 'their team';
+        const summary = `Rift Herald${timeText} secured by ${killerName}${assistSuffix}`;
+        return ensureSentence(summary);
+      }
+      case 'tower': {
+        const laneLabel = formatLabel(data.laneType) || 'Tower';
+        const killerName = getParticipantDisplayName(data.killerId) || getTeamName(data.teamId) || 'their team';
+        const summary = `${laneLabel} tower${timeText} destroyed by ${killerName}${assistSuffix}`;
+        return ensureSentence(summary);
+      }
+      case 'player': {
+        const name = data.summonerName || getParticipantDisplayName(data.id) || 'that player';
+        return ensureSentence(`Opened player card for ${name}`);
+      }
+      case 'frame_events': {
+        const frameIndex = params.frameIndex ?? data.frameIndex;
+        const frameLabel = frameIndex !== undefined && frameIndex !== null ? `frame ${frameIndex}` : 'this moment';
+        return ensureSentence(`Opened frame events for ${frameLabel}`);
+      }
+      default:
+        return ensureSentence(`Opened the ${cardType} card`);
+    }
+  };
+
+  const formatActionSummary = (action) => {
+    if (!action) return '';
+
+    const wrapResult = (text) => text ? `**Result:** ${ensureSentence(text)}` : '';
+
+    switch (action.type) {
+      case 'multi_action': {
+        const subSummaries = (action.actions || [])
+          .map(formatActionSummary)
+          .filter(Boolean)
+          .map(summary => summary.startsWith('**Result:**') ? summary.replace('**Result:**', '').trim() : summary)
+          .map(item => item.startsWith('- ') ? item : `- ${item}`);
+        if (subSummaries.length) {
+          const uniqueSummaries = Array.from(new Set(subSummaries));
+          return ['**Result:**', ...uniqueSummaries].join('\n');
+        }
+        return '**Result:** Completed the requested action.';
+      }
+      case 'navigate_timeline': {
+        const { frameIndex, minutes } = action.params || {};
+        const time = minutes !== undefined && minutes !== null
+          ? formatMinutes(minutes)
+          : frameIndex !== undefined && frameIndex !== null
+            ? formatMinutes(frameIndex)
+            : null;
+        return wrapResult(time ? `Jumped to ${time} on the timeline` : 'Jumped on the timeline');
+      }
+      case 'toggle_event': {
+        const eventType = action.params?.eventType;
+        const labelMap = {
+          kills: 'kill markers on the map',
+          objectives: 'objective markers on the map',
+          wards: 'ward markers on the map',
+          items: 'item markers on the map'
+        };
+        const label = labelMap[eventType] || `${formatLabel(eventType) || 'selected'} markers`;
+        const verb = action.params?.enabled === false ? 'Disabled' : 'Enabled';
+        return wrapResult(`${verb} ${label}`);
+      }
+      case 'toggle_map_filter': {
+        const filter = action.params?.filter;
+        const filterLabels = {
+          my_team: 'your team',
+          enemy_team: 'the enemy team',
+          blue_team: 'the blue team',
+          red_team: 'the red team',
+          all: 'all players'
+        };
+        const label = filterLabels[filter] || filter || 'selected players';
+        return wrapResult(`Showing ${label} on the map`);
+      }
+      case 'open_card':
+        return wrapResult(formatOpenCardSummary(action.params));
+      case 'display_players':
+        return wrapResult('Shared the player list you asked for');
+      case 'display_event_timeline': {
+        const eventType = action.params?.eventType;
+        const label = eventType ? `${formatLabel(eventType)} timeline` : 'event timeline';
+        return wrapResult(`Shared the ${label}`);
+      }
+      case 'select_player': {
+        const participantId = action.params?.participantId;
+        const name = getParticipantDisplayName(participantId);
+        if (name) {
+          return wrapResult(`Focused on ${name}`);
+        }
+        return wrapResult('Focused on the selected player');
+      }
+      default:
+        return wrapResult('Completed the requested action');
+    }
+  };
+
+  const executeAction = (action, { suppressConclusion = false } = {}) => {
     if (action.type === 'multi_action') {
       // Execute multiple actions in sequence
       action.actions.forEach(subAction => {
-        executeAction(subAction);
+        executeAction(subAction, { suppressConclusion: true });
       });
+      if (!suppressConclusion) {
+        concludeAction(action);
+      }
       return;
     }
 
@@ -618,6 +826,20 @@ const RightSidebar = ({
       case 'select_player':
         // Handle player selection
         break;
+    }
+
+    if (!suppressConclusion) {
+      concludeAction(action);
+    }
+  };
+
+  const concludeAction = (action) => {
+    if (!action) return;
+
+    const summary = formatActionSummary(action) || ensureSentence('Completed the requested action');
+
+    if (summary) {
+      postActionMessage(summary);
     }
   };
 

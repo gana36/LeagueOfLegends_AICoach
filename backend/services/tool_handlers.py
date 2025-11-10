@@ -36,6 +36,8 @@ class ToolHandlers:
             return ToolHandlers._handle_open_player_card(tool_input, context)
         elif tool_name == 'open_frame_events_card':
             return ToolHandlers._handle_open_frame_events_card(tool_input, context)
+        elif tool_name == 'open_building_card':
+            return ToolHandlers._handle_open_building_card(tool_input, context)
         
         return None
     
@@ -102,6 +104,58 @@ class ToolHandlers:
                     'eventType': toggle_event_type,
                     'enabled': True
                 }
+            })
+
+        # Add open_card action for supported events
+        if event_type == 'dragon' and index < len(events.get('dragons', [])):
+            actions.append({
+                'type': 'open_card',
+                'params': {
+                    'cardType': 'dragon',
+                    'data': events['dragons'][index],
+                    'index': index
+                },
+                'requiresPermission': False
+            })
+        elif event_type == 'kill' and index < len(events.get('kills', [])):
+            actions.append({
+                'type': 'open_card',
+                'params': {
+                    'cardType': 'kill',
+                    'data': events['kills'][index],
+                    'index': index
+                },
+                'requiresPermission': False
+            })
+        elif event_type == 'tower' and index < len(events.get('towers', [])):
+            actions.append({
+                'type': 'open_card',
+                'params': {
+                    'cardType': 'tower',
+                    'data': events['towers'][index],
+                    'index': index
+                },
+                'requiresPermission': False
+            })
+        elif event_type == 'baron' and index < len(events.get('barons', [])):
+            actions.append({
+                'type': 'open_card',
+                'params': {
+                    'cardType': 'baron',
+                    'data': events['barons'][index],
+                    'index': index
+                },
+                'requiresPermission': False
+            })
+        elif event_type == 'herald' and index < len(events.get('heralds', [])):
+            actions.append({
+                'type': 'open_card',
+                'params': {
+                    'cardType': 'herald',
+                    'data': events['heralds'][index],
+                    'index': index
+                },
+                'requiresPermission': False
             })
 
         description = f"Navigate to {event_type} #{index + 1} at {timestamp:.1f} minutes"
@@ -324,4 +378,25 @@ class ToolHandlers:
                 'frameIndex': frame_index
             },
             'description': f"Showing {total_events} events at frame {frame_index}"
+        }
+
+    @staticmethod
+    def _handle_open_building_card(tool_input: Dict, context: Dict) -> Optional[Dict]:
+        """Open detailed building (tower/inhibitor) card."""
+        index = tool_input['index']
+        buildings = context.get('events', {}).get('towers', [])
+
+        if index >= len(buildings):
+            return None
+
+        building = buildings[index]
+        return {
+            'type': 'open_card',
+            'requiresPermission': False,
+            'params': {
+                'cardType': 'tower',
+                'data': building,
+                'index': index
+            },
+            'description': f"Opening building #{index + 1} details"
         }

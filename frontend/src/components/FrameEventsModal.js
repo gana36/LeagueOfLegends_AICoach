@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MONSTER_ICONS } from '../constants/monsterIcons';
+import { getItemName } from '../utils/itemNames';
 
 const ITEM_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/15.21.1/img/item';
 const SPELL_IMAGE_BASE = 'https://ddragon.leagueoflegends.com/cdn/15.21.1/img/spell';
@@ -226,7 +227,7 @@ const FrameEventsModal = ({ frame, frameIndex, onClose, onEventClick, participan
     return (
       <ImageWithFallback
         src={itemId ? `${ITEM_IMAGE_BASE}/${itemId}.png` : null}
-        alt={itemId ? `Item ${itemId}` : 'Unknown item'}
+        alt={itemId ? getItemName(itemId) : 'Unknown item'}
         className={`${size} rounded-lg border border-primary-gold/40 bg-black/40 object-contain shadow-md`}
         sizeClass={size}
         fallbackType="item"
@@ -427,19 +428,19 @@ const FrameEventsModal = ({ frame, frameIndex, onClose, onEventClick, participan
     }
     if (event.type === 'ITEM_PURCHASED') {
       const buyer = getParticipantDisplay(event.participantId);
-      return `${buyer} purchased Item ${event.itemId}`;
+      return `${buyer} purchased ${getItemName(event.itemId)}`;
     }
     if (event.type === 'ITEM_SOLD') {
       const seller = getParticipantDisplay(event.participantId);
-      return `${seller} sold Item ${event.itemId}`;
+      return `${seller} sold ${getItemName(event.itemId)}`;
     }
     if (event.type === 'ITEM_DESTROYED') {
       const owner = getParticipantDisplay(event.participantId);
-      return `${owner}'s Item ${event.itemId} consumed`;
+      return `${owner}'s ${getItemName(event.itemId)} consumed`;
     }
     if (event.type === 'ITEM_UNDO') {
       const owner = getParticipantDisplay(event.participantId);
-      return `${owner} refunded Item ${event.itemId}`;
+      return `${owner} refunded ${getItemName(event.itemId)}`;
     }
     if (event.type === 'SKILL_LEVEL_UP') {
       const skillNames = { 1: 'Q', 2: 'W', 3: 'E', 4: 'R' };

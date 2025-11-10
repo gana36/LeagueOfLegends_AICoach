@@ -67,6 +67,7 @@ function App() {
   const [pinnedPlayers, setPinnedPlayers] = useState([]);
   const [detailsModalPlayer, setDetailsModalPlayer] = useState(null);
   const [showFrameEvents, setShowFrameEvents] = useState(false);
+  const [selectedMapEvent, setSelectedMapEvent] = useState(null);
   const [_isMatchDropdownOpen, setIsMatchDropdownOpen] = useState(false);
 
   // Cache for timeline data to prevent duplicate fetches
@@ -674,6 +675,8 @@ function App() {
           currentFrameIndex={currentFrameIndex}
           participantSummary={participantSummaryById}
           mainParticipantId={mainParticipantId}
+          selectedEvent={selectedMapEvent}
+          onSelectEvent={setSelectedMapEvent}
         />
         
         <RightSidebar 
@@ -695,6 +698,17 @@ function App() {
           onOpenPlayerModal={(participantId) => setDetailsModalPlayer(participantId)}
           onOpenFrameEventsModal={() => setShowFrameEvents(true)}
           onSetPlayerFilter={setPlayerFilter}
+          onShowEventCard={(event) => {
+            if (!event) {
+              setSelectedMapEvent(null);
+              return;
+            }
+
+            setSelectedMapEvent({
+              ...event,
+              timestampMillis: event.timestampMillis ?? ((event.timestamp ?? 0) < 1000 ? Math.round((event.timestamp ?? 0) * 60000) : event.timestamp)
+            });
+          }}
         />
       </div>
       

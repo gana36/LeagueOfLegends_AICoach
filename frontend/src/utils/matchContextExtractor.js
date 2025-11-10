@@ -129,7 +129,8 @@ export class MatchContextExtractor {
     };
 
     this.frames.forEach((frame, frameIndex) => {
-      const timestamp = frame.timestamp / 60000;
+      const frameTimestamp = frame?.timestamp ?? frameIndex * 60000;
+      const timestamp = frameTimestamp / 60000;
       
       (frame.events || []).forEach(event => {
         if (event.type === 'CHAMPION_KILL') {
@@ -142,17 +143,22 @@ export class MatchContextExtractor {
             if (id) participantsInvolved.add(id);
           });
           index.kills.push({
+            type: 'CHAMPION_KILL',
+            cardType: 'kill',
             frameIndex,
             timestamp,
-            killer: event.killerId,
-            victim: event.victimId,
-            assisters: event.assistingParticipantIds || [],
+            timestampMillis: frameTimestamp,
+            killerId: event.killerId,
+            victimId: event.victimId,
+            assistingParticipantIds: event.assistingParticipantIds || [],
             position: event.position,
+            bounty: event.bounty ?? null,
+            shutdownBounty: event.shutdownBounty ?? null,
+            teamId: event.teamId ?? (killer?.team === 'blue' ? 100 : killer?.team === 'red' ? 200 : undefined),
             killerName: killer?.name,
             victimName: victim?.name,
             killerTeam: killer?.team,
             victimTeam: victim?.team,
-            bounty: event.bounty || null,
             participants: Array.from(participantsInvolved)
           });
         } else if (event.type === 'ELITE_MONSTER_KILL') {
@@ -163,32 +169,32 @@ export class MatchContextExtractor {
             if (id) participantsInvolved.add(id);
           });
           
-          const assisters = (event.assistingParticipantIds || []).map(id => {
-            const assister = this.participants[id];
-            return assister ? assister.name : `Player ${id}`;
-          });
-          
           const objective = {
+            type: 'ELITE_MONSTER_KILL',
             frameIndex,
             timestamp,
-            killer: event.killerId,
+            timestampMillis: frameTimestamp,
+            killerId: event.killerId,
             killerName: killer?.name,
             team: killer?.team,
             position: event.position,
             monsterType: event.monsterType,
             monsterSubType: event.monsterSubType,
-            assisters: assisters,
+            assistingParticipantIds: event.assistingParticipantIds || [],
+            teamId: event.teamId ?? (killer?.team === 'blue' ? 100 : killer?.team === 'red' ? 200 : undefined),
+            bounty: event.bounty ?? null,
             participants: Array.from(participantsInvolved)
           };
           if (event.monsterType === 'DRAGON') {
-            const dragonEvent = { ...objective, dragonType: event.monsterSubType };
+            const dragonEvent = { ...objective, dragonType: event.monsterSubType, cardType: 'dragon' };
             index.dragons.push(dragonEvent);
             index.objectives.push(dragonEvent);
           } else if (event.monsterType === 'BARON_NASHOR') {
-            index.barons.push(objective);
-            index.objectives.push(objective);
+            const baronEvent = { ...objective, cardType: 'baron' };
+            index.barons.push(baronEvent);
+            index.objectives.push(baronEvent);
           } else if (event.monsterType === 'RIFTHERALD') {
-            const heraldEvent = { ...objective, monsterType: 'RIFT_HERALD' };
+            const heraldEvent = { ...objective, monsterType: 'RIFT_HERALD', cardType: 'herald' };
             index.heralds.push(heraldEvent);
             index.objectives.push(heraldEvent);
           }
@@ -200,15 +206,21 @@ export class MatchContextExtractor {
             if (id) participantsInvolved.add(id);
           });
           const towerEvent = {
+            type: 'BUILDING_KILL',
+            cardType: 'tower',
             frameIndex,
             timestamp,
+            timestampMillis: frameTimestamp,
             laneType: event.laneType,
             teamId: event.teamId,
-            killer: event.killerId,
+            killerId: event.killerId,
             killerName: killer?.name,
             killerTeam: killer?.team,
             team: killer?.team,
             position: event.position,
+            assistingParticipantIds: event.assistingParticipantIds || [],
+            bounty: event.bounty ?? null,
+            assistingParticipantIds: event.assistingParticipantIds || [],
             participants: Array.from(participantsInvolved)
           };
           index.towers.push(towerEvent);
