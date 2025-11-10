@@ -181,6 +181,21 @@ class MatchChatAgent:
                     "required": []
                 }
             }
+            ,
+            {
+                "name": "open_building_card",
+                "description": "Open a detailed card view for a specific building (tower/inhibitor) destruction.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "index": {
+                            "type": "number",
+                            "description": "Which building event (index in tower history)"
+                        }
+                    },
+                    "required": ["index"]
+                }
+            }
         ]
     
     async def chat(

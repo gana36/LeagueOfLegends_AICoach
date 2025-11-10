@@ -11,11 +11,29 @@ const MapArea = ({
   frames,
   currentFrameIndex,
   participantSummary = {},
-  mainParticipantId = 1
+  mainParticipantId = 1,
+  selectedEvent: selectedEventProp,
+  onSelectEvent
 }) => {
   const [mapDimensions, setMapDimensions] = useState({ width: 0, height: 0 });
   const [mapAspect, setMapAspect] = useState(1);
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [internalSelectedEvent, setInternalSelectedEvent] = useState(null);
+  const isEventControlled = selectedEventProp !== undefined;
+  const selectedEvent = isEventControlled ? selectedEventProp : internalSelectedEvent;
+
+  const setSelectedEvent = useCallback((valueOrUpdater) => {
+    const currentValue = isEventControlled ? selectedEventProp : internalSelectedEvent;
+    const nextValue = typeof valueOrUpdater === 'function'
+      ? valueOrUpdater(currentValue)
+      : valueOrUpdater;
+
+    if (!isEventControlled) {
+      setInternalSelectedEvent(nextValue);
+    }
+    if (onSelectEvent) {
+      onSelectEvent(nextValue);
+    }
+  }, [isEventControlled, selectedEventProp, internalSelectedEvent, onSelectEvent]);
   const mapContainerRef = useRef(null);
   const mapImageRef = useRef(null);
 
@@ -372,7 +390,11 @@ const MapArea = ({
   }, [participantSummary, getParticipantName]);
 
   const getEventTimestamp = useCallback((event) => {
-    if (event?.timestamp !== undefined) return event.timestamp;
+    if (event?.timestampMillis !== undefined) return event.timestampMillis;
+    if (event?.timestamp !== undefined) {
+      const raw = event.timestamp;
+      return raw < 1000 ? Math.round(raw * 60000) : raw;
+    }
     const frame = frames?.[event?.frameIndex];
     if (frame?.timestamp !== undefined) return frame.timestamp;
     return (event?.frameIndex || 0) * 60000;
