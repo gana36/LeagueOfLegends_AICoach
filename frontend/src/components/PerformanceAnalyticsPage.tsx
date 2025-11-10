@@ -253,7 +253,13 @@ function PerformanceAnalyticsPage({ puuid, playerName, cachedData, loading: exte
               <ChampionGrid filters={filters} comparisonMode={comparisonMode} data={championData} loading={loading} />
             </div>
             <div>
-              <RadarChartPanel comparisonMode={comparisonMode} data={radarData} loading={loading} />
+              <RadarChartPanel
+                comparisonMode={comparisonMode}
+                data={radarData}
+                loading={loading}
+                playerA={playerA}
+                playerB={playerB}
+              />
             </div>
           </div>
 

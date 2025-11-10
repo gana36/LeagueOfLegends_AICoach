@@ -22,6 +22,8 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
 
   const mapContainerRef = useRef(null);
   const mapImageRef = useRef(null);
+  const containerRef = useRef(null); // For chat positioning
+  const timelineRef = useRef(null); // For chat positioning
 
   // Year Recap Chatbot state
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -44,8 +46,6 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
   const chatScrollRef = useRef(null);
   const lastMessageRef = useRef(null);
   const chatInputRef = useRef(null);
-  const containerRef = useRef(null);
-  const timelineRef = useRef(null);
 
   const coordinateBounds = { minX: 0, maxX: 15000, minY: 0, maxY: 15000 };
 
@@ -531,7 +531,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
 
         <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Year Stats & Achievements */}
-        <div className="w-80 bg-gray-900 border-r border-gray-700 p-4 overflow-y-auto">
+        <div className="w-80 bg-gray-900 border-r border-gray-700 p-4 overflow-y-auto scrollbar-hide">
           {/* Title Card */}
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 mb-4">
             <h1 className="text-2xl font-bold text-primary-gold">Year Recap</h1>
@@ -649,11 +649,6 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Gameplay Habits */}
-          <div className="mb-4">
-            <HabitsSection puuid={puuid} timeRange={50} />
           </div>
 
           {/* Heatmap Settings */}
@@ -868,7 +863,7 @@ const YearRecapPage = ({ yearRecapData, puuid, playerName, loading, error, narra
         </div>
 
         {/* Right Sidebar - Event Categories with Chat Overlay */}
-        <div ref={containerRef} className="w-80 bg-gray-900 border-l border-gray-700 overflow-y-auto relative">
+        <div ref={containerRef} className="w-80 bg-gray-900 border-l border-gray-700 overflow-y-auto scrollbar-hide relative">
           <div className="p-4 space-y-4">
             {/* Event Categories */}
             <div>

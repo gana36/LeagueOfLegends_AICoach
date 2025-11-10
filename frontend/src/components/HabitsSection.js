@@ -206,7 +206,7 @@ const HabitsSection = ({ puuid, rank = "GOLD", timeRange = null }) => {
 
           {/* Summary */}
           <div className="text-center text-xs text-gray-500 pt-2 border-t border-gray-700">
-            Based on {habitsData.matches_analyzed} matches analyzed
+            Based on recent {habitsData.matches_analyzed} matches
           </div>
         </div>
       )}

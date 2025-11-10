@@ -103,7 +103,7 @@ export function Header({ filters, setFilters, comparisonMode, setComparisonMode,
               </Avatar>
               <div>
                 <h1 className="text-cyan-400 text-2xl">{playerA}</h1>
-                <p className="text-slate-400">Diamond II • 237 LP</p>
+                <p className="text-slate-400">Master • 145 LP</p>
               </div>
             </div>
 
@@ -122,7 +122,7 @@ export function Header({ filters, setFilters, comparisonMode, setComparisonMode,
                   </Avatar>
                   <div>
                     <h1 className="text-fuchsia-400 text-2xl">{playerB}</h1>
-                    <p className="text-slate-400">Platinum I • 184 LP</p>
+                    <p className="text-slate-400">Diamond II • 98 LP</p>
                   </div>
                 </div>
               </>
