@@ -71,7 +71,7 @@ coaching_agent = CoachingAgent(riot_client) if riot_client else None
 match_chat_agent = MatchChatAgent()
 year_recap_chat_agent = YearRecapChatAgent()
 timeline_aggregator = TimelineAggregator()
-
+print("Hello there")
 # Initialize S3 service
 try:
     s3_service = S3Service()
