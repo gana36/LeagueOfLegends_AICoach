@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Download } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
@@ -23,7 +22,6 @@ interface HeaderProps {
 
 export function Header({ filters, setFilters, comparisonMode, setComparisonMode, playerA, setPlayerA, playerB, setPlayerB, pageContentRef }: HeaderProps) {
   const [_copiedLink, setCopiedLink] = useState(false);
-  const [downloading, setDownloading] = useState(false);
 
   const _handleCopyLink = async () => {
     try {
@@ -36,56 +34,19 @@ export function Header({ filters, setFilters, comparisonMode, setComparisonMode,
       const patchCode = filters.patch ? filters.patch.replace('.', '') : '0000'; // Default to 0000 if no patch
       const timeCode = filters.timeRange;
       const compCode = comparisonMode ? '1' : '0';
-      
+
       // Create short player name hash (first 3 chars, remove spaces)
       const playerHash = playerA.substring(0, 3).toLowerCase().replace(/\s+/g, '') || 'sum';
-      
+
       // Build compact string: r-c-ro-pt-t-cm-p (always 7 parts separated by -)
       const compact = `${regionCode}-${championCode}-${roleCode}-${patchCode}-${timeCode}-${compCode}-${playerHash}`;
-      
+
       const shareUrl = `${window.location.origin}/#/a/${compact}`;
       await navigator.clipboard.writeText(shareUrl);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
     } catch (err) {
       console.error('Failed to copy link:', err);
-    }
-  };
-
-  const handleDownloadImage = async () => {
-    if (!pageContentRef.current) {
-      console.error('Page content ref not available');
-      return;
-    }
-
-    setDownloading(true);
-    try {
-      // Dynamically import html2canvas to avoid webpack issues
-      const html2canvas = (await import('html2canvas')).default;
-      
-      // Capture the page content
-      const canvas = await html2canvas(pageContentRef.current, {
-        backgroundColor: '#0f172a', // slate-900 background
-        useCORS: true,
-        logging: false,
-      } as any);
-
-      // Convert canvas to blob and download
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.download = `performance-stats-${playerA.replace(/\s+/g, '-')}-${Date.now()}.png`;
-          link.href = url;
-          link.click();
-          URL.revokeObjectURL(url);
-        }
-      }, 'image/png');
-    } catch (err) {
-      console.error('Failed to download image:', err);
-      alert('Failed to download image. Please try again.');
-    } finally {
-      setDownloading(false);
     }
   };
 
@@ -129,19 +90,6 @@ export function Header({ filters, setFilters, comparisonMode, setComparisonMode,
             )}
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleDownloadImage}
-              disabled={downloading}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800/50 border border-slate-700 hover:bg-slate-700/50 hover:border-cyan-500/50 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="w-5 h-5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
-              <span className="text-slate-200 group-hover:text-cyan-400 transition-colors">
-                {downloading ? 'Downloading...' : 'Download Image'}
-              </span>
-            </button>
-          </div>
         </div>
 
         {/* Filters Row */}

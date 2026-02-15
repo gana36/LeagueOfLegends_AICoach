@@ -116,6 +116,18 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
       // Wait a moment for modal to close
       await new Promise(resolve => setTimeout(resolve, 300));
 
+      // Ensure carousel is visible and has dimensions
+      if (!carouselRef.current) {
+        throw new Error('Carousel element not found');
+      }
+
+      const rect = carouselRef.current.getBoundingClientRect();
+      console.log('Carousel dimensions:', rect.width, 'x', rect.height);
+
+      if (rect.width === 0 || rect.height === 0) {
+        throw new Error('Carousel has no dimensions. Please ensure the carousel is visible.');
+      }
+
       // Enable capture mode (simplifies rendering)
       setIsCapturing(true);
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -129,23 +141,48 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
         // Navigate to the card
         setCurrentCardIndex(i);
 
-        // Wait for render
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Wait for render - increased timeout to ensure proper rendering
+        await new Promise(resolve => setTimeout(resolve, 800));
 
         // Capture the card
         const canvas = await html2canvas(carouselRef.current, {
           backgroundColor: '#0a1428',
           useCORS: true,
           logging: false,
-          scale: 2,
+          scale: 1, // Reduce scale to avoid memory issues
           allowTaint: true,
-          foreignObjectRendering: false,
+          foreignObjectRendering: true, // Try enabling this
           imageTimeout: 0,
           removeContainer: true,
+          windowWidth: carouselRef.current.scrollWidth,
+          windowHeight: carouselRef.current.scrollHeight,
+          onclone: (clonedDoc) => {
+            // Remove all filters and problematic styles from cloned document
+            const allElements = clonedDoc.querySelectorAll('*');
+            allElements.forEach(el => {
+              if (el.style) {
+                el.style.filter = 'none';
+                el.style.backdropFilter = 'none';
+                el.style.webkitFilter = 'none';
+                el.style.webkitBackdropFilter = 'none';
+              }
+            });
+          },
           ignoreElements: (element) => {
-            return element.hasAttribute('data-html2canvas-ignore');
+            return element.hasAttribute('data-html2canvas-ignore') ||
+                   element.tagName === 'svg' ||
+                   element.tagName === 'SVG';
           }
         });
+
+        // Log canvas dimensions for debugging
+        console.log(`Card ${i + 1} captured: ${canvas.width}x${canvas.height}`);
+
+        // Validate canvas dimensions before adding
+        if (canvas.width === 0 || canvas.height === 0) {
+          console.error(`Card ${i + 1} has invalid dimensions: ${canvas.width}x${canvas.height}`);
+          throw new Error(`Failed to capture card ${i + 1}. Please try again.`);
+        }
 
         cardCanvases.push(canvas);
       }
@@ -158,6 +195,17 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
 
       setProgressMessage('Creating collage...');
       setUploadProgress(55);
+
+      // Validate that we have valid canvases
+      if (cardCanvases.length === 0) {
+        throw new Error('No cards were captured');
+      }
+
+      // Check if any canvas has invalid dimensions
+      const invalidCanvas = cardCanvases.find(canvas => canvas.width === 0 || canvas.height === 0);
+      if (invalidCanvas) {
+        throw new Error('Failed to capture cards properly. Please try again.');
+      }
 
       // Create vertical collage
       const cardWidth = cardCanvases[0].width;
@@ -253,6 +301,18 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
       // Wait a moment for modal to close
       await new Promise(resolve => setTimeout(resolve, 300));
 
+      // Ensure carousel is visible and has dimensions
+      if (!carouselRef.current) {
+        throw new Error('Carousel element not found');
+      }
+
+      const rect = carouselRef.current.getBoundingClientRect();
+      console.log('Carousel dimensions for video:', rect.width, 'x', rect.height);
+
+      if (rect.width === 0 || rect.height === 0) {
+        throw new Error('Carousel has no dimensions. Please ensure the carousel is visible.');
+      }
+
       // Enable capture mode (simplifies rendering)
       setIsCapturing(true);
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -336,13 +396,29 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
             backgroundColor: '#0a1428',
             useCORS: true,
             logging: false,
-            scale: 2,
+            scale: 1,
             allowTaint: true,
-            foreignObjectRendering: false,
+            foreignObjectRendering: true,
             imageTimeout: 0,
             removeContainer: true,
+            windowWidth: carouselRef.current.scrollWidth,
+            windowHeight: carouselRef.current.scrollHeight,
+            onclone: (clonedDoc) => {
+              // Remove all filters and problematic styles from cloned document
+              const allElements = clonedDoc.querySelectorAll('*');
+              allElements.forEach(el => {
+                if (el.style) {
+                  el.style.filter = 'none';
+                  el.style.backdropFilter = 'none';
+                  el.style.webkitFilter = 'none';
+                  el.style.webkitBackdropFilter = 'none';
+                }
+              });
+            },
             ignoreElements: (element) => {
-              return element.hasAttribute('data-html2canvas-ignore');
+              return element.hasAttribute('data-html2canvas-ignore') ||
+                     element.tagName === 'svg' ||
+                     element.tagName === 'SVG';
             }
           });
 
@@ -488,6 +564,8 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
           .capturing-mode * {
             backdrop-filter: none !important;
             -webkit-backdrop-filter: none !important;
+            filter: none !important;
+            -webkit-filter: none !important;
           }
           .capturing-mode .backdrop-blur-lg,
           .capturing-mode .backdrop-blur-sm,
@@ -496,8 +574,19 @@ const YearRecapCarousel = ({ cachedNarrativeData }) => {
             -webkit-backdrop-filter: none !important;
             background-color: rgba(10, 20, 40, 0.9) !important;
           }
-          .capturing-mode .blur-\\[150px\\] {
-            filter: blur(100px) !important;
+          .capturing-mode .blur-\\[150px\\],
+          .capturing-mode .blur-\\[200px\\] {
+            filter: none !important;
+            opacity: 0 !important;
+          }
+          .capturing-mode svg {
+            display: none !important;
+          }
+          .capturing-mode pattern {
+            display: none !important;
+          }
+          .capturing-mode .animate-pulse {
+            animation: none !important;
           }
         `}</style>
       )}
